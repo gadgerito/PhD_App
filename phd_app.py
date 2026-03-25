@@ -942,8 +942,8 @@ with st.sidebar:
                 st.rerun()
 
     sidebar_pomodoro()
-
-   if not st.session_state.get('timer_running'):
+    
+    if not st.session_state.get('timer_running'):
         if st.button("🚀 Start 25m Sprint", use_container_width=True):
             st.session_state.target_time = datetime.now() + timedelta(minutes=25)
             st.session_state.timer_running = True
@@ -953,7 +953,6 @@ with st.sidebar:
         p_col1, p_col2 = st.columns(2)
         if st.session_state.get('timer_paused'):
             if p_col1.button("▶️ Resume", use_container_width=True):
-                # Shift target time forward by how long we were paused
                 paused_duration = datetime.now() - st.session_state.pause_start
                 st.session_state.target_time += paused_duration
                 st.session_state.timer_paused = False
@@ -977,21 +976,6 @@ with st.sidebar:
                     st.success(f"Saved {elapsed_mins}m! +{elapsed_mins} XP")
             st.session_state.timer_running = False
             st.session_state.timer_paused = False
-            st.session_state.target_time = None
-            st.rerun()
-    else:
-        if st.button("🛑 Stop & Save Progress", use_container_width=True):
-            if st.session_state.get('target_time'):
-                elapsed_mins = int((datetime.now() - (st.session_state.target_time - timedelta(minutes=25))).total_seconds() / 60)
-                if elapsed_mins > 0:
-                    task_id = selected_mission.split(":")[0]
-                    st.session_state.task_timers[task_id] = \
-                        st.session_state.task_timers.get(task_id, 0) + elapsed_mins
-                    st.session_state.xp += elapsed_mins
-                    st.session_state.celebration_xp = elapsed_mins
-                    save_all_progress()
-                    st.success(f"Saved {elapsed_mins}m! +{elapsed_mins} XP")
-            st.session_state.timer_running = False
             st.session_state.target_time = None
             st.rerun()
 
