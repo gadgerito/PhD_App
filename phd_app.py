@@ -1082,8 +1082,9 @@ Be direct, specific, and doctoral-level. Keep responses concise — this is a si
 # ─────────────────────────────────────────────
 # 11. TABS
 # ─────────────────────────────────────────────
-t1, t2, t3, t4 = st.tabs([
-    "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide"
+t1, t2, t3, t4, t5 = st.tabs([
+    "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review"
+])
 ])
 
 # ── TAB 1: TASK BOARD ──────────────────────
@@ -1248,6 +1249,164 @@ with t4:
     q5, s5 = random.choice(BATMAN_QUOTES)
     st.markdown(quote_box(q5, s5), unsafe_allow_html=True)
 
+# -- TAB 5: COMPS REVIEW ────────────────────
+with t5:
+    st.header("🎓 Comprehensive Exam Review")
+    q6, s6 = random.choice(BATMAN_QUOTES)
+    st.markdown(quote_box(q6, s6), unsafe_allow_html=True)
+    st.caption("Section-by-section AI feedback on your comprehensive exams draft.")
+
+    COMPS_SECTIONS = [
+        {"title": "Introduction to HBMC", "paper": "Paper 1: HBMC", "content": """Home-based medical care (HBMC) is comprised of the set of healthcare services delivered to a patient in their home. An interdisciplinary team typically leads HBMC programs, delivering care to homebound, frail, seriously ill older adults who otherwise cannot access conventional primary care due to age, disability, mobility or other issues."""},
+        {"title": "Historical Context", "paper": "Paper 1: HBMC", "content": """HBMC has evolved significantly over the past few decades, driven by shifts in healthcare policy and patient preferences. The COVID-19 pandemic accelerated the adoption of telehealth and remote patient monitoring (RPM), catalyzing the adoption of HBMC into the broader healthcare system. Another key historical factor was the 2010 Affordable Care Act (ACA), which expanded home and community-based services (HCBS). This facilitated a move away from institutional care, and an increased focus on quality, patient-centered care and cost-efficiency."""},
+        {"title": "Who Needs HBMC and Why", "paper": "Paper 1: HBMC", "content": """HBMC's expansion reflects the changing needs of America's oldest adults. It is currently projected that the number of American adults ages 85 and older (the 'oldest old'), the cohort that needs the most support with activities of daily living (ADLs), will more than double from 6.5 million (2022) to 13.7 million in 2040 (a 111 percent increase). This cohort experiences aging, related declines in function, including reduced walking ability, muscle strength, and flexibility. Mental health is also impacted by neurological mechanisms due to aging, leading to cognitive decline, dementia, and depression. HBMC models such as Home-Based Primary Care (HBPC) and Home Health Services (HHS) address these challenges by providing care directly in the home, increasing access to healthcare and quality of life these adults would likely go without."""},
+        {"title": "Models of Home-Based Medical Care", "paper": "Paper 1: HBMC", "content": """There is a range of HBMC models that allow people to remain in their home. These vary according to acuity, intensity, and length of care. Home-Based Primary Care (HBPC) is one HBMC healthcare model designed to address the needs of the homebound, chronically ill, frail population. HBPC is a longitudinal model of care which delivers care to homebound adults, particularly older adults with complex chronic medical comorbidities. Home Health Services (HHS) refer to the suite of medical services provided by nurses, rehabilitation therapists, including physical and occupational therapists, and home health aides (HHAs). These services are time-limited and are typically provided to post-acute patients discharged from the hospital. Hospital-at-Home (HaH) is acute, hospital-level treatment delivered in the patient's home, and is a substitute for inpatient hospitalization."""},
+        {"title": "Economic and Clinical Impact", "paper": "Paper 1: HBMC", "content": """HBMC not only reduces avoidable hospitalizations among the homebound older adult population, but also demonstrates significant cost savings. Studies have shown that HBMC can reduce hospital admissions by 20-30% and emergency department visits by up to 25%. The economic benefits extend beyond direct cost savings to include improved quality of life, reduced caregiver burden, and better alignment with patient preferences for aging in place."""},
+        {"title": "Advantages of HBMC", "paper": "Paper 1: HBMC", "content": """Home-based medical care presents a number of benefits, including expanded access to underserved communities, reduced hospital-acquired infections, improved patient satisfaction, and the ability to provide personalized care in familiar surroundings. HBMC also reduces the burden on formal caregivers and enables more efficient use of healthcare resources by targeting high-need, high-cost patients."""},
+        {"title": "Disadvantages of HBMC", "paper": "Paper 1: HBMC", "content": """Home-based medical care offers many benefits, but it also presents distinct risks and limitations. These include challenges related to reimbursement and payment models, workforce shortages, regulatory complexity, technology infrastructure requirements, and the clinical limitations of delivering acute care outside of a hospital setting. The lack of a standardized reimbursement model remains one of the most significant barriers to widespread HBMC adoption."""},
+        {"title": "Successful Aging", "paper": "Paper 2: Climate & Aging", "content": """The concept of Successful Aging (SA) emerged as a concept in the early 1960s, and is widely used in gerontology to describe aging well. The most cited model of SA is Rowe and Kahn's (1997) three-component framework, which defines successful aging as: (1) low probability of disease and disease-related disability, (2) high cognitive and physical functional capacity, and (3) active engagement with life. However, this model has been criticized for its narrow focus on individual-level factors and its failure to account for structural determinants of health."""},
+        {"title": "Systems Theory and the Socio-ecological Model", "paper": "Paper 2: Climate & Aging", "content": """Although Resilience Theory acknowledges social and structural influences beyond the individual, it does not fully capture the multi-level systemic dynamics that shape older adults' vulnerability and adaptive capacity. Systems Theory and the Socio-ecological Model (SEM) provide a complementary framework. Bronfenbrenner's ecological systems theory conceptualizes human development as embedded within nested environmental systems: the microsystem, mesosystem, exosystem, and macrosystem."""},
+        {"title": "Physiological Vulnerabilities", "paper": "Paper 2: Climate & Aging", "content": """Older adults are more likely to have one or more conditions that make them especially vulnerable to climate-related health impacts. These include cardiovascular disease, respiratory conditions, diabetes, and neurological disorders. Thermoregulatory impairment, reduced kidney function, and polypharmacy further increase vulnerability to heat-related illness. Frailty, defined as a state of increased vulnerability to stressors, is particularly prevalent among community-dwelling older adults aged 80 and older."""},
+        {"title": "Mental Health Impacts", "paper": "Paper 2: Climate & Aging", "content": """Extreme weather events may worsen anxiety, depression, post-traumatic stress disorder (PTSD), and social isolation among older adults. The psychological impact of losing one's home, community, or sense of place can be profound, particularly for older adults with deep community ties. Climate grief and eco-anxiety are emerging constructs that describe the psychological distress associated with awareness of climate change and its impacts."""},
+        {"title": "Home Loss, Displacement, and Institutionalization", "paper": "Paper 2: Climate & Aging", "content": """Natural disasters disproportionately affect older adults' housing stability. Home loss and displacement can trigger a cascade of negative health outcomes, including accelerated functional decline, increased mortality, and premature institutionalization. Studies of Hurricane Katrina found that older adults who were displaced were significantly more likely to be admitted to nursing homes in the aftermath, even controlling for pre-disaster health status."""},
+        {"title": "Preparedness Frameworks", "paper": "Paper 3: Delphi & Policy", "content": """Clinical protocols for high-risk older adults have also been derived from Delphi studies. The 5Ts Framework identifies five domains of disaster preparedness for older adults: transportation, medications, medical equipment, medical records, and treatment decisions. The ASPR Toolkit provides guidance for healthcare coalitions on integrating older adult needs into emergency operations plans."""},
+        {"title": "4.2 Scaling Down and Relevant Units of Analysis", "paper": "Paper 4: SCPA", "content": """Scaling down in SCPA means shifting the unit of analysis from the national to the subnational level. In the context of HBMC emergency preparedness, this means examining state-level variation in how federal preparedness guidelines are implemented. States represent the appropriate unit of analysis because they are the primary locus of Medicaid administration, healthcare licensing, and emergency management coordination."""},
+        {"title": "4.3 Variation Under a Shared Federal Framework", "paper": "Paper 4: SCPA", "content": """Despite sharing a common federal regulatory framework, states exhibit substantial variation in HBMC emergency preparedness policies. This variation is driven by differences in state Medicaid programs, emergency management infrastructure, political context, and the strength of advocacy coalitions. SCPA provides tools to analyze this variation systematically, identifying which configurations of state-level factors are associated with stronger preparedness outcomes."""},
+        {"title": "4.4 Causal Complexity in HBMC Emergency Preparedness", "paper": "Paper 4: SCPA", "content": """HBMC emergency preparedness is causally complex in ways that make conventional regression-based analysis insufficient. Multiple causal pathways may lead to the same outcome (equifinality), and the same factor may have different effects in different contexts (causal asymmetry). SCPA's set-theoretic methods, particularly Qualitative Comparative Analysis (QCA), are well-suited to capture this complexity."""},
+        {"title": "Conclusion (SCPA)", "paper": "Paper 4: SCPA", "content": """This paper has argued that Subnational Comparative Policy Analysis (SCPA) provides a methodologically rigorous and theoretically appropriate framework for studying variation in HBMC emergency preparedness across states. By scaling down to the state level, designing controlled comparisons, and applying set-theoretic logic to account for causal complexity, researchers can generate actionable insights for policy reform."""},
+    ]
+
+    # Paper filter
+    papers = sorted(set(s['paper'] for s in COMPS_SECTIONS))
+    selected_paper = st.selectbox("Filter by Paper:", ["All Papers"] + papers, key="comps_paper_filter")
+
+    filtered_sections = [
+        s for s in COMPS_SECTIONS
+        if selected_paper == "All Papers" or s['paper'] == selected_paper
+    ]
+
+    # Section selector
+    section_titles = [f"{s['paper']} — {s['title']}" for s in filtered_sections]
+    selected_idx = st.selectbox("Select Section:", range(len(section_titles)),
+                                 format_func=lambda i: section_titles[i],
+                                 key="comps_section_select")
+
+    current_section = filtered_sections[selected_idx]
+
+    # Display section
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);'
+        f'border-left:4px solid #f1c40f;border-radius:10px;padding:20px;'
+        f'color:#f0e6c8;margin:12px 0;">'
+        f'<b style="color:#f1c40f;font-size:1.1rem;">{current_section["title"]}</b>'
+        f'<span style="float:right;background:#f1c40f22;color:#f1c40f;'
+        f'padding:2px 10px;border-radius:12px;font-size:0.78rem;">{current_section["paper"]}</span><br><br>'
+        f'<div style="font-size:0.92rem;line-height:1.8;white-space:pre-wrap;">{current_section["content"]}</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+
+    # Feedback type
+    feedback_type = st.radio(
+        "Feedback Focus:",
+        ["📋 General Review", "🔬 Argument Strength", "📚 Literature & Citations", "✍️ Academic Voice", "🎯 Emily's Lens"],
+        horizontal=True,
+        key="comps_feedback_type"
+    )
+
+    feedback_prompts = {
+        "📋 General Review": "Give a comprehensive review covering argument clarity, evidence quality, academic voice, and structure. Be specific and doctoral-level.",
+        "🔬 Argument Strength": "Focus specifically on the strength of the argument. Is the claim clear? Is it well-supported? Are there logical gaps? What counterarguments are missing?",
+        "📚 Literature & Citations": "Focus on the literature review quality. Are citations used effectively? Is there synthesis or just stacking? Are there key sources missing? Is recency appropriate?",
+        "✍️ Academic Voice": "Focus on writing quality — passive voice, nominalization, hedging, vague quantifiers, wind-up phrases. Provide specific rewrites for weak sentences.",
+        "🎯 Emily's Lens": "You are Emily, a dissertation committee member in public health and aging policy. Give direct, constructive feedback as a committee member would during a comps review. Be rigorous but supportive."
+    }
+
+    # Additional notes
+    user_notes = st.text_area(
+        "Add context or specific questions (optional):",
+        placeholder="e.g. 'I'm worried the argument in paragraph 2 is too weak' or 'Does this section address the CARA model adequately?'",
+        key="comps_notes",
+        height=80
+    )
+
+    col_fb1, col_fb2 = st.columns(2)
+
+    if col_fb1.button("🦇 Get Section Feedback", use_container_width=True, key="comps_feedback_btn"):
+        with st.spinner("Analyzing your comps..."):
+            try:
+                import anthropic
+                client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+
+                prompt = f"""You are an expert dissertation committee member specializing in public health, aging, health policy, geriatrics, and disaster preparedness.
+
+Paper: {current_section['paper']}
+Section: {current_section['title']}
+
+Section content:
+\"\"\"{current_section['content']}\"\"\"
+
+{f'Student notes: {user_notes}' if user_notes else ''}
+
+{feedback_prompts[feedback_type]}
+
+Format your response with these headers:
+**📋 Overall Assessment** (2-3 sentences)
+**💪 Strengths** (bullet points)
+**⚔️ Weaknesses & Gaps** (bullet points, be specific)
+**✨ Priority Revisions** (top 3 most important changes, numbered)
+**🦇 Committee Verdict** (one direct sentence on whether this section is ready)"""
+
+                message = client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=1500,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+
+                feedback = message.content[0].text
+                st.markdown(
+                    f'<div style="background:linear-gradient(135deg,#1a3a1a,#0d2b0d);'
+                    f'border-left:4px solid #2ecc71;border-radius:10px;padding:20px;'
+                    f'color:#d5f5e3;margin:12px 0;">'
+                    f'<b style="color:#2ecc71;font-size:1.1rem;">🦇 Section Feedback — {current_section["title"]}</b><br><br>'
+                    f'<div style="white-space:pre-wrap;line-height:1.7;">{feedback}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+                st.session_state.xp += 20
+                st.session_state.celebration_xp = 20
+                save_all_progress()
+                st.toast(f"Section reviewed! +20 XP", icon="🦇")
+
+            except Exception as e:
+                st.error(f"Feedback failed: {e}")
+
+    if col_fb2.button("⏭️ Next Section", use_container_width=True, key="comps_next_btn"):
+        next_idx = (selected_idx + 1) % len(filtered_sections)
+        st.session_state['comps_section_select'] = next_idx
+        st.rerun()
+
+    st.divider()
+
+    # Progress tracker
+    st.subheader("📊 Review Progress")
+    if 'reviewed_sections' not in st.session_state:
+        st.session_state.reviewed_sections = set()
+
+    if st.button("✅ Mark Section as Reviewed", key="mark_reviewed"):
+        st.session_state.reviewed_sections.add(current_section['title'])
+        st.success(f"Marked '{current_section['title']}' as reviewed!")
+
+    reviewed_count = len(st.session_state.reviewed_sections)
+    total_count = len(COMPS_SECTIONS)
+    st.progress(reviewed_count / total_count if total_count else 0)
+    st.write(f"**{reviewed_count}/{total_count} sections reviewed**")
+
+    if st.session_state.reviewed_sections:
+        with st.expander("📋 Reviewed Sections"):
+            for s in st.session_state.reviewed_sections:
+                st.write(f"✅ {s}")
+            
   # ── WRITING WARMUP LAB ──
     st.subheader("🏋️ Writing Warmup Lab")
     st.caption("Daily exercises to sharpen your academic writing before diving into dissertation work.")
