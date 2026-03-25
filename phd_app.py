@@ -1289,8 +1289,7 @@ if w_col2.button("⏭️ Next Exercise", use_container_width=True, key="next_war
     st.session_state.current_warmup_idx = (st.session_state.current_warmup_idx + 1) % len(filtered_warmups)
     st.rerun()
 
-st.divider()
-
+    st.divider()
 
     # ── SENTENCE SLAYER ──
     st.subheader("⚡ The Sentence Slayer")
