@@ -20,7 +20,7 @@ st.set_page_config(layout="wide", page_title="The Dark Knight of Public Health",
 
 # ── PASSWORD GATE ──
 def check_password():
-    f st.session_state.get("authenticated"):
+    if st.session_state.get("authenticated"):
         return True
     st.markdown("## 🦇 Bat-Computer Access")
     password = st.text_input("Enter password:", type="password")
