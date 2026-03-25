@@ -17,8 +17,23 @@ def get_audio_b64():
 
 # --- MUST BE FIRST ---
 st.set_page_config(layout="wide", page_title="The Dark Knight of Public Health", page_icon="🦇")
-st.write(list(st.secrets.keys()))
 
+# ── PASSWORD GATE ──
+def check_password():
+    f st.session_state.get("authenticated"):
+        return True
+    st.markdown("## 🦇 Bat-Computer Access")
+    password = st.text_input("Enter password:", type="password")
+    if st.button("Enter the Batcave"):
+        if password == st.secrets["APP_PASSWORD"]:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Access Denied. This is not your city.")
+    return False
+
+if not check_password():
+    st.stop()
 # -- MongoDB --
 @st.cache_resource
 def get_db():
