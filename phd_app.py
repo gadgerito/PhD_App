@@ -1243,7 +1243,7 @@ if w_col1.button("🦇 Get AI Feedback", use_container_width=True, key="warmup_f
         with st.spinner("Batman is reviewing your argument..."):
             try:
                 import anthropic
-                client = anthropic.Anthropic()
+                client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
                 message = client.messages.create(
                     model="claude-sonnet-4-20250514",
                     max_tokens=1024,
@@ -1336,7 +1336,7 @@ if w_col2.button("⏭️ Next Exercise", use_container_width=True, key="next_war
         if st.button("🦇 Deep AI Analysis", use_container_width=True):
             with st.spinner("The Dark Knight is analyzing your writing..."):
                 try:
-                    client = anthropic.Anthropic()
+                    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
                     message = client.messages.create(
                         model="claude-opus-4-5",
                         max_tokens=1024,
@@ -1562,7 +1562,7 @@ Format your response with clear headers for each section."""
         with st.spinner("Searching the Bat-Database..."):
             try:
                 import anthropic
-                client = anthropic.Anthropic()
+                client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
                 message = client.messages.create(
                     model="claude-opus-4-5",
                     max_tokens=1024,
