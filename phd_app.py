@@ -856,6 +856,26 @@ lab_context = {
         "prefill": "Added section clarifying that HCBS is an optional benefit and not a mandatory requirement for state Medicaid plans."
     }
 }
+# Maps each comps section to its relevant task IDs
+SECTION_TASKS = {
+    "Introduction to HBMC": ["#7", "#13", "#14", "#32"],
+    "Historical Context": ["#7", "#13"],
+    "Who Needs HBMC and Why": ["#7", "#14", "#29"],
+    "Models of Home-Based Medical Care": ["#12", "#13", "#14", "#19", "#23", "#32"],
+    "Economic and Clinical Impact": ["#20", "#24", "#25", "#31"],
+    "Advantages of HBMC": ["#20", "#24", "#25"],
+    "Disadvantages of HBMC": ["#19", "#20", "#24", "#25", "#29", "#30"],
+    "Successful Aging": ["#39"],
+    "Systems Theory and the Socio-ecological Model": ["#38", "#40", "#55"],
+    "Physiological Vulnerabilities": ["#45", "#42"],
+    "Mental Health Impacts": ["#42", "#49"],
+    "Home Loss, Displacement, and Institutionalization": ["#44", "#50", "#52", "#63"],
+    "Preparedness Frameworks": ["#38", "#41", "#54", "#58", "#59", "#65", "#71", "#92"],
+    "4.2 Scaling Down and Relevant Units of Analysis": ["#85", "#89"],
+    "4.3 Variation Under a Shared Federal Framework": ["#85", "#89"],
+    "4.4 Causal Complexity in HBMC Emergency Preparedness": ["#85", "#89"],
+    "Conclusion (SCPA)": ["#85", "#89"],
+}
 
 # ─────────────────────────────────────────────
 # 10. SIDEBAR
@@ -1274,7 +1294,28 @@ with t5:
         {"title": "4.4 Causal Complexity in HBMC Emergency Preparedness", "paper": "Paper 4: SCPA", "content": """HBMC emergency preparedness is causally complex in ways that make conventional regression-based analysis insufficient. Multiple causal pathways may lead to the same outcome (equifinality), and the same factor may have different effects in different contexts (causal asymmetry). SCPA's set-theoretic methods, particularly Qualitative Comparative Analysis (QCA), are well-suited to capture this complexity."""},
         {"title": "Conclusion (SCPA)", "paper": "Paper 4: SCPA", "content": """This paper has argued that Subnational Comparative Policy Analysis (SCPA) provides a methodologically rigorous and theoretically appropriate framework for studying variation in HBMC emergency preparedness across states. By scaling down to the state level, designing controlled comparisons, and applying set-theoretic logic to account for causal complexity, researchers can generate actionable insights for policy reform."""},
     ]
-
+# Show linked tasks for this section
+section_task_ids = SECTION_TASKS.get(current_section['title'], [])
+if section_task_ids:
+    all_tasks_flat = {i['id']: i for cat in master_tasks.values() for i in cat}
+    linked_tasks = [all_tasks_flat[tid] for tid in section_task_ids if tid in all_tasks_flat]
+    
+    if linked_tasks:
+        st.markdown("**📌 Tasks linked to this section:**")
+        for task in linked_tasks:
+            is_done = task['id'] in st.session_state.completed_tasks
+            type_icon = {"Quick Win": "⚡", "Deep Work": "🔬", "Resource Hunt": "🔍"}.get(task['type'], "🎯")
+            status = "✅" if is_done else "⬜"
+            color = "#888" if is_done else "#000"
+            strikethrough = "text-decoration:line-through;" if is_done else ""
+            st.markdown(
+                f'<div style="background:#f9f9f9;border-left:3px solid #f1c40f;'
+                f'border-radius:6px;padding:8px 12px;margin:4px 0;{strikethrough}color:{color};">'
+                f'{status} {type_icon} <b>{task["id"]}</b>: {task["task"]} '
+                f'<span style="float:right;color:#f1c40f;font-weight:bold;">+{task["pts"]} XP</span>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
     # Paper filter
     papers = sorted(set(s['paper'] for s in COMPS_SECTIONS))
     selected_paper = st.selectbox("Filter by Paper:", ["All Papers"] + papers, key="comps_paper_filter")
@@ -1381,8 +1422,9 @@ Format your response with these headers:
                 st.error(f"Feedback failed: {e}")
 
     if col_fb2.button("⏭️ Next Section", use_container_width=True, key="comps_next_btn"):
-        next_idx = (selected_idx + 1) % len(filtered_sections)
-        st.session_state['comps_section_select'] = next_idx
+        if 'comps_next_offset' not in st.session_state:
+            st.session_state.comps_next_offset = 0
+        st.session_state.comps_next_offset += 1
         st.rerun()
 
     st.divider()
