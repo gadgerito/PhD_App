@@ -1152,81 +1152,81 @@ with t4:
     st.markdown(quote_box(q5, s5), unsafe_allow_html=True)
 
     # -- WRITING WARMUP LAB -- 
-st.subheader("🏋️ Writing Warmup Lab")
-st.caption("Daily exercises to sharpen your academic writing before diving into dissertation work.")
+    st.subheader("🏋️ Writing Warmup Lab")
+    st.caption("Daily exercises to sharpen your academic writing before diving into dissertation work.")
 
-WARMUP_EXERCISES = [
-    {
-        "title": "🎯 The Argument in One Sentence",
-        "prompt": "Summarize the central argument of your dissertation in exactly one sentence. No hedging, no qualifiers — just the claim.",
-        "type": "Argument Building",
-        "hint": "Start with: 'This dissertation argues that...'"
-    },
-    {
-        "title": "⚔️ Steel-Man the Opposition",
-        "prompt": "Pick the strongest possible objection to your research and write 2-3 sentences making that argument as powerfully as you can.",
-        "type": "Argument Building",
-        "hint": "A strong dissertation anticipates and addresses counterarguments. Make it hurt."
-    },
-    {
-        "title": "🔗 The Gap Statement",
-        "prompt": "Write 3 sentences: (1) What the literature says, (2) What it misses, (3) What your research does about it.",
-        "type": "Argument Building",
-        "hint": "This is the core of your literature review. Every paper needs a clear gap statement."
-    },
-    {
-        "title": "📊 Data to Claim",
-        "prompt": "Take a finding from your research and write it as a strong academic claim. Then write 2 sentences of analysis explaining what it means for public health policy.",
-        "type": "Argument Building",
-        "hint": "Don't just report the finding — interpret it. What does it mean? For whom? So what?"
-    },
-    {
-        "title": "🏥 The Policy Implication Sprint",
-        "prompt": "In 3-4 sentences, describe one concrete policy change that your research supports. Name the specific population, the specific intervention, and the specific outcome.",
-        "type": "Public Health Writing",
-        "hint": "Be specific: not 'improve care for elderly' but 'expand HCBS waiver access for adults 65+ in rural Medicaid programs.'"
-    },
-    {
-        "title": "🌍 The Equity Lens",
-        "prompt": "Rewrite this sentence with an explicit equity framing: 'Older adults face challenges accessing home-based care.'",
-        "type": "Public Health Writing",
-        "hint": "Who specifically? Which populations are most affected? What structural factors drive this?"
-    },
-    {
-        "title": "📝 The Methods Justification",
-        "prompt": "In 2-3 sentences, justify why your research methodology is the right approach for your research question. Acknowledge one limitation.",
-        "type": "Public Health Writing",
-        "hint": "Reviewers always ask: why this method and not another? Answer it preemptively."
-    },
-    {
-        "title": "🔬 Abstract from Scratch",
-        "prompt": "Write a 5-sentence abstract for one of your papers: (1) Background, (2) Gap, (3) Methods, (4) Key Finding, (5) Implication.",
-        "type": "Public Health Writing",
-        "hint": "Each sentence does exactly one job. No sentence should do two jobs."
-    }
-]
+    WARMUP_EXERCISES = [
+         {
+            "title": "🎯 The Argument in One Sentence",
+            "prompt": "Summarize the central argument of your dissertation in exactly one sentence. No hedging, no qualifiers — just the claim.",
+            "type": "Argument Building",
+            "hint": "Start with: 'This dissertation argues that...'"
+        },
+        {
+            "title": "⚔️ Steel-Man the Opposition",
+            "prompt": "Pick the strongest possible objection to your research and write 2-3 sentences making that argument as powerfully as you can.",
+            "type": "Argument Building",
+            "hint": "A strong dissertation anticipates and addresses counterarguments. Make it hurt."
+        },
+        {
+            "title": "🔗 The Gap Statement",
+            "prompt": "Write 3 sentences: (1) What the literature says, (2) What it misses, (3) What your research does about it.",
+            "type": "Argument Building",
+            "hint": "This is the core of your literature review. Every paper needs a clear gap statement."
+        },
+        {
+            "title": "📊 Data to Claim",
+            "prompt": "Take a finding from your research and write it as a strong academic claim. Then write 2 sentences of analysis explaining what it means for public health policy.",
+            "type": "Argument Building",
+            "hint": "Don't just report the finding — interpret it. What does it mean? For whom? So what?"
+        },
+        {
+            "title": "🏥 The Policy Implication Sprint",
+            "prompt": "In 3-4 sentences, describe one concrete policy change that your research supports. Name the specific population, the specific intervention, and the specific outcome.",
+            "type": "Public Health Writing",
+            "hint": "Be specific: not 'improve care for elderly' but 'expand HCBS waiver access for adults 65+ in rural Medicaid programs.'"
+        },
+        {
+            "title": "🌍 The Equity Lens",
+            "prompt": "Rewrite this sentence with an explicit equity framing: 'Older adults face challenges accessing home-based care.'",
+            "type": "Public Health Writing",
+            "hint": "Who specifically? Which populations are most affected? What structural factors drive this?"
+        },
+        {
+            "title": "📝 The Methods Justification",
+            "prompt": "In 2-3 sentences, justify why your research methodology is the right approach for your research question. Acknowledge one limitation.",
+            "type": "Public Health Writing",
+            "hint": "Reviewers always ask: why this method and not another? Answer it preemptively."
+        },
+        {
+            "title": "🔬 Abstract from Scratch",
+            "prompt": "Write a 5-sentence abstract for one of your papers: (1) Background, (2) Gap, (3) Methods, (4) Key Finding, (5) Implication.",
+            "type": "Public Health Writing",
+            "hint": "Each sentence does exactly one job. No sentence should do two jobs."
+        }
+    ]
 
 # Filter by type
-warmup_type = st.radio(
-    "Exercise Type:",
-    ["All", "Argument Building", "Public Health Writing"],
-    horizontal=True,
-    key="warmup_type"
-)
+    warmup_type = st.radio(
+        "Exercise Type:",
+        ["All", "Argument Building", "Public Health Writing"],
+        horizontal=True,
+        key="warmup_type"
+    )
 
-filtered_warmups = [
-    w for w in WARMUP_EXERCISES
-    if warmup_type == "All" or w['type'] == warmup_type
-]
+    filtered_warmups = [
+        w for w in WARMUP_EXERCISES
+        if warmup_type == "All" or w['type'] == warmup_type
+    ]
 
 # Random exercise picker
-if 'current_warmup_idx' not in st.session_state:
-    st.session_state.current_warmup_idx = 0
+    if 'current_warmup_idx' not in st.session_state:
+        st.session_state.current_warmup_idx = 0
 
 col_pick1, col_pick2 = st.columns([1, 3])
-if col_pick1.button("🎲 Random Exercise", use_container_width=True):
-    st.session_state.current_warmup_idx = random.randint(0, len(filtered_warmups) - 1)
-    st.rerun()
+    if col_pick1.button("🎲 Random Exercise", use_container_width=True):
+        st.session_state.current_warmup_idx = random.randint(0, len(filtered_warmups) - 1)
+        st.rerun()
 
 current_exercise = filtered_warmups[st.session_state.current_warmup_idx % len(filtered_warmups)]
 
