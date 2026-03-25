@@ -17,6 +17,11 @@ def get_audio_b64():
 # --- MUST BE FIRST ---
 st.set_page_config(layout="wide", page_title="The Dark Knight of Public Health", page_icon="🦇")
 
+# -- MongoDB --
+def get_db():
+    client = MongoClient(st.secrets["mongo"]["uri"])
+    return client["phd_app"]["progress"]
+
 # --- SERVE STATIC FOLDER ===
 st.markdown(
     '<link rel="preload" href="app/static/bat_sting.wav" as="audio">',
@@ -44,19 +49,24 @@ def save_all_progress():
 def load_all_progress():
     try:
         db = get_db()
-        d = db.find_one({"_id": "main"}) or {}
-        return (
-            d.get("xp", 0),
-            set(d.get("completed_tasks" , [])),
-            d.get("saved_responses", {}),
-            d.get("task_timers", {}),
-            d.get("custom_rewards", [])
-            d.get("claimed_rewards", []),
-            d.get("custom_vault", {}),
-            d.get("last_task_id","")
+        d = db.find_one({"_id": "main"})
+
+        if not d:
+            return 0, set(), {}, {}, [], [], {}, ""
+
+        return (d.get("xp", 0),
+        set(d.get("completed_tasks", [])),
+        d.get("saved_responses", {}),
+        d.get("task_timers", {}),
+        d.get("custom_rewards", []),
+        d.get("claimed_rewards", []),
+        d.get("custom_vault", {}),
+        d.get("last_task_id", "")
         )
-    except:
-        return 0, set(), {},{}, [], [], {}, ""
+    except Exception as e:
+        print(f"Error loading progress: {e}")
+        return 0, set(), {}, {}, [], [], {}, ""
+
 
 def save_all_progress():
     try:
