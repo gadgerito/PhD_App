@@ -9,6 +9,7 @@ import random
 from pymongo import MongoClient
 from pathlib import Path
 import base64
+@st.cache_data
 def get_audio_b64():
     audio_path = Path(__file__).parent / "static" / "bat.sting.wav"
     with open(audio_path, "rb") as f:
@@ -18,6 +19,7 @@ def get_audio_b64():
 st.set_page_config(layout="wide", page_title="The Dark Knight of Public Health", page_icon="🦇")
 
 # -- MongoDB --
+@st.cache_resource
 def get_db():
     client = MongoClient(st.secrets["mongo"]["uri"])
     return client["phd_app"]["progress"]
@@ -931,8 +933,6 @@ with st.sidebar:
     )
     #
       # ← ADD THIS LINE HERE
-    st.session_state.saved_responses[sel_id] = st.session_state.get(f"sidebar_lab_{sel_id}", val)
-    save_all_progress()
     if st.button("✅ Save Draft", use_container_width=True, key="save_draft_btn"):
         current_text = st.session_state.get(f"sidebar_lab_{sel_id}", val)
         if current_text:
