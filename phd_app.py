@@ -1085,7 +1085,6 @@ Be direct, specific, and doctoral-level. Keep responses concise — this is a si
 t1, t2, t3, t4, t5 = st.tabs([
     "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review"
 ])
-])
 
 # ── TAB 1: TASK BOARD ──────────────────────
 with t1:
