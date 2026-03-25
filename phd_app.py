@@ -6,6 +6,7 @@ import time
 import pandas as pd
 from datetime import datetime, timedelta
 import random
+from pymongo import MongoClient
 from pathlib import Path
 import base64
 def get_audio_b64():
@@ -41,19 +42,39 @@ def save_all_progress():
         json.dump(data, f)
 
 def load_all_progress():
-    if os.path.exists(SAVE_FILE):
-        try:
-            with open(SAVE_FILE, "r") as f:
-                d = json.load(f)
-                return (d.get("xp", 0), set(d.get("completed_tasks", [])),
-                        d.get("saved_responses", {}), d.get("task_timers", {}),
-                        d.get("custom_rewards", []), d.get("claimed_rewards", []),
-                        d.get("custom_vault", {}),
-                        d.get("last_task_id", ""))
-        except:
-            pass
-    return 0, set(), {}, {}, [], [], {}, ""
+    try:
+        db = get_db()
+        d = db.find_one({"_id": "main"}) or {}
+        return (
+            d.get("xp", 0),
+            set(d.get("completed_tasks" , [])),
+            d.get("saved_responses", {}),
+            d.get("task_timers", {}),
+            d.get("custom_rewards", [])
+            d.get("claimed_rewards", []),
+            d.get("custom_vault", {}),
+            d.get("last_task_id","")
+        )
+    except:
+        return 0, set(), {},{}, [], [], {}, ""
 
+def save_all_progress():
+    try:
+        db = get_db()
+        data = {
+            "_id": "main",
+            "xp": st.session_state.xp,
+            "completed_tasks": list(st.session_state.completed_tasks),
+            "saved_responses": st.session_state.saved_responses,
+            "task_timers": st.session_state.task_timers,
+            "custom_rewards": st.session_state.custom_rewards,
+            "claimed_rewards": st.session_state.claimed_rewards,
+            "custom_vault": st.session_state.custom_vault,
+            "last_task_id": st.session_state.get("last_task_id", "")
+        }  
+        db.replace_one({"_id": "main"}, data, upsert=True)
+    except Exception as e:
+        st.error(f"Save failed: {e}")
 # ─────────────────────────────────────────────
 # 2. INITIALIZATION
 # ─────────────────────────────────────────────
