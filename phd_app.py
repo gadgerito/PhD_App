@@ -977,29 +977,25 @@ with st.sidebar:
             st.warning("Nothing to save — type your response first.")
         st.rerun()
 
-
-
     st.divider()
     if st.button("💾 Force Manual Save"):
         save_all_progress()
         st.success("Data Secured! 🦇")
-st.divider()
-st.subheader("🦇 Writing Coach")
     
-    # Mode toggle
+    st.divider()
+    st.subheader("🦇 Writing Coach")
+
     coach_mode = st.radio(
         "Mode:",
         ["🏥 Public Health", "📚 General Academic"],
         horizontal=True,
         key="coach_mode"
     )
-    
-    # Initialize chat history
+
     if 'coach_messages' not in st.session_state:
         st.session_state.coach_messages = []
-    
-    # Display chat history
-    for msg in st.session_state.coach_messages[-6:]:  # Show last 6 messages
+
+    for msg in st.session_state.coach_messages[-6:]:
         if msg['role'] == 'user':
             st.markdown(
                 f'<div style="background:#1a1a2e;border-left:3px solid #f1c40f;'
@@ -1014,37 +1010,34 @@ st.subheader("🦇 Writing Coach")
                 f'font-size:0.82rem;margin:4px 0;">🦇 {msg["content"]}</div>',
                 unsafe_allow_html=True
             )
-    
-    # Input
+
     coach_input = st.text_area(
         "Ask your coach:",
         placeholder="Paste a paragraph, ask for brainstorming help, or ask a writing question...",
         key="coach_input",
         height=100
     )
-    
+
     coach_col1, coach_col2 = st.columns(2)
-    
+
     if coach_col1.button("💬 Send", use_container_width=True, key="coach_send"):
         if coach_input:
-            # Add user message
             st.session_state.coach_messages.append({
                 "role": "user",
                 "content": coach_input
             })
-            
             with st.spinner("🦇 Thinking..."):
                 try:
                     import anthropic
                     client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
-                    
-                    if coach_mode == "🏥 Public Health":
-                        system_prompt = """You are an expert dissertation writing coach specializing in public health, 
-aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate 
-working on papers about home-based care (HCBS/HaH), climate disasters and older adults, 
-and Delphi policy studies. 
 
-You help with: brainstorming arguments, reviewing paragraphs, strengthening claims, 
+                    if coach_mode == "🏥 Public Health":
+                        system_prompt = """You are an expert dissertation writing coach specializing in public health,
+aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate
+working on papers about home-based care (HCBS/HaH), climate disasters and older adults,
+and Delphi policy studies.
+
+You help with: brainstorming arguments, reviewing paragraphs, strengthening claims,
 fixing structure, improving academic voice, and giving dissertation-specific feedback.
 
 Be direct, specific, and doctoral-level. Use Batman metaphors occasionally for fun.
@@ -1055,37 +1048,37 @@ You help with: brainstorming arguments, reviewing paragraphs, strengthening clai
 fixing structure, improving academic voice, and general dissertation feedback.
 
 Be direct, specific, and doctoral-level. Keep responses concise — this is a sidebar chat."""
-                    
-                    # Build message history for context
+
                     messages = []
                     for m in st.session_state.coach_messages[-10:]:
                         messages.append({
                             "role": m["role"],
                             "content": m["content"]
                         })
-                    
+
                     response = client.messages.create(
                         model="claude-sonnet-4-20250514",
                         max_tokens=500,
                         system=system_prompt,
                         messages=messages
                     )
-                    
+
                     reply = response.content[0].text
                     st.session_state.coach_messages.append({
                         "role": "assistant",
                         "content": reply
                     })
                     st.rerun()
-                    
+
                 except Exception as e:
                     st.error(f"Coach failed: {e}")
         else:
             st.warning("Type something first!")
-    
+
     if coach_col2.button("🗑️ Clear", use_container_width=True, key="coach_clear"):
         st.session_state.coach_messages = []
         st.rerun()
+
 # ─────────────────────────────────────────────
 # 11. TABS
 # ─────────────────────────────────────────────
