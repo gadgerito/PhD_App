@@ -984,7 +984,7 @@ with st.sidebar:
         save_all_progress()
         st.success("Data Secured! 🦇")
 st.divider()
-    st.subheader("🦇 Writing Coach")
+st.subheader("🦇 Writing Coach")
     
     # Mode toggle
     coach_mode = st.radio(
