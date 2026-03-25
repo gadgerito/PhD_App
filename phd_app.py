@@ -105,6 +105,20 @@ st.session_state.rank_up_title   = ''
 st.session_state.pomodoro_done   = False
 st.session_state.reward_claimed  = ''
 
+# Play audio if flagged
+if st.session_state.get('play_audio'):
+    audio_b64 = get_audio_b64()
+    components.html(
+        f"""
+        <script>
+            const audio = new Audio('data:audio/wav;base64,{audio_b64}');
+            audio.play().catch(e => console.log('Audio blocked:', e));
+        </script>
+        """,
+        height=0
+    )
+    st.session_state.play_audio = False
+
 # ─────────────────────────────────────────────
 # 3. RANK SYSTEM
 # ─────────────────────────────────────────────
@@ -1014,19 +1028,17 @@ with t1:
                         st.session_state.xp += m['pts']  # Fixed: was adding XP twice
                         
                         # Trigger visuals (The "Bat Flash")
-                        audio_b64 = get_audio_b64()
-                        components.html(
-                            f"""
-                            <div style='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(255,215,0,0.1);border:10px solid #FFD700;pointer-events:none;z-index:999;'></div>
-                            <script>
-                                 const audio = new Audio('data:audio/wav;base64,{audio_b64}');
-                                audio.play().catch(e => console.log('Audio blocked:', e));
-                            </script>
-                            """,
-                            height=0
-                         )
+                        # COMPLETE: Add to completed & award XP
+                        st.session_state.completed_tasks.add(m['id'])
+                        st.session_state.xp += m['pts']
+                        st.session_state.play_audio = True  # ← flag audio to play on rerun
                         st.toast(f"Justice Served! +{m['pts']} XP", icon="🦇")
-                        time.sleep(1.2)
+
+                        # Save & Refresh
+                        save_all_progress()
+                        st.rerun()
+                        st.toast(f"Justice Served! +{m['pts']} XP", icon="🦇")
+                        time.sleep(30)
                     
                     # Save & Refresh
                     save_all_progress()
