@@ -30,22 +30,6 @@ st.markdown(
 # ─────────────────────────────────────────────
 # 1. PERSISTENCE
 # ─────────────────────────────────────────────
-SAVE_FILE = "slayer_progress.json"
-
-def save_all_progress():
-    data = {
-        "xp": st.session_state.xp,
-        "completed_tasks": list(st.session_state.completed_tasks),
-        "saved_responses": st.session_state.saved_responses,
-        "task_timers": st.session_state.task_timers,
-        "custom_rewards": st.session_state.custom_rewards,
-        "claimed_rewards": st.session_state.claimed_rewards,
-        "custom_vault": st.session_state.custom_vault,
-        "last_task_id": st.session_state.get("last_task_id", "")
-    }
-    with open(SAVE_FILE, "w") as f:
-        json.dump(data, f)
-
 def load_all_progress():
     try:
         db = get_db()
@@ -972,7 +956,6 @@ t1, t2, t3, t4 = st.tabs([
 ])
 
 # ── TAB 1: TASK BOARD ──────────────────────
-st.write(os.listdir(Path(__file__).parent / "static"))
 with t1:
     st.header("⚔️ Task Board: Gotham Missions")
     
@@ -1028,7 +1011,6 @@ with t1:
                         
                         # Trigger visuals (The "Bat Flash")
                         audio_b64 = get_audio_b64()
-                        st.write(Path(__file__).parent / "static" / "bat.sting.wav")
                         components.html(
                             f"""
                             <div style='position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(255,215,0,0.1);border:10px solid #FFD700;pointer-events:none;z-index:999;'></div>
