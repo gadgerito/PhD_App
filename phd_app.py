@@ -943,8 +943,8 @@ with st.sidebar:
 
     sidebar_pomodoro()
 
-        if not st.session_state.get('timer_running'):
-            if st.button("🚀 Start 25m Sprint", use_container_width=True):
+    if not st.session_state.get('timer_running'):
+        if st.button("🚀 Start 25m Sprint", use_container_width=True):
                 st.session_state.target_time = datetime.now() + timedelta(minutes=25)
                 st.session_state.timer_running = True
                 st.session_state.timer_paused = False
@@ -952,7 +952,7 @@ with st.sidebar:
         else:
             p_col1, p_col2 = st.columns(2)
             if st.session_state.get('timer_paused'):
-                if p_col1.button("▶️ Resume", use_container_width=True):
+            if p_col1.button("▶️ Resume", use_container_width=True):
                     paused_duration = datetime.now() - st.session_state.pause_start
                     st.session_state.target_time += paused_duration
                     st.session_state.timer_paused = False
