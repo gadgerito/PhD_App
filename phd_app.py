@@ -1135,6 +1135,163 @@ with t4:
     q5, s5 = random.choice(BATMAN_QUOTES)
     st.markdown(quote_box(q5, s5), unsafe_allow_html=True)
 
+    # -- WRITING WARMUP LAB -- 
+st.subheader("🏋️ Writing Warmup Lab")
+st.caption("Daily exercises to sharpen your academic writing before diving into dissertation work.")
+
+WARMUP_EXERCISES = [
+    {
+        "title": "🎯 The Argument in One Sentence",
+        "prompt": "Summarize the central argument of your dissertation in exactly one sentence. No hedging, no qualifiers — just the claim.",
+        "type": "Argument Building",
+        "hint": "Start with: 'This dissertation argues that...'"
+    },
+    {
+        "title": "⚔️ Steel-Man the Opposition",
+        "prompt": "Pick the strongest possible objection to your research and write 2-3 sentences making that argument as powerfully as you can.",
+        "type": "Argument Building",
+        "hint": "A strong dissertation anticipates and addresses counterarguments. Make it hurt."
+    },
+    {
+        "title": "🔗 The Gap Statement",
+        "prompt": "Write 3 sentences: (1) What the literature says, (2) What it misses, (3) What your research does about it.",
+        "type": "Argument Building",
+        "hint": "This is the core of your literature review. Every paper needs a clear gap statement."
+    },
+    {
+        "title": "📊 Data to Claim",
+        "prompt": "Take a finding from your research and write it as a strong academic claim. Then write 2 sentences of analysis explaining what it means for public health policy.",
+        "type": "Argument Building",
+        "hint": "Don't just report the finding — interpret it. What does it mean? For whom? So what?"
+    },
+    {
+        "title": "🏥 The Policy Implication Sprint",
+        "prompt": "In 3-4 sentences, describe one concrete policy change that your research supports. Name the specific population, the specific intervention, and the specific outcome.",
+        "type": "Public Health Writing",
+        "hint": "Be specific: not 'improve care for elderly' but 'expand HCBS waiver access for adults 65+ in rural Medicaid programs.'"
+    },
+    {
+        "title": "🌍 The Equity Lens",
+        "prompt": "Rewrite this sentence with an explicit equity framing: 'Older adults face challenges accessing home-based care.'",
+        "type": "Public Health Writing",
+        "hint": "Who specifically? Which populations are most affected? What structural factors drive this?"
+    },
+    {
+        "title": "📝 The Methods Justification",
+        "prompt": "In 2-3 sentences, justify why your research methodology is the right approach for your research question. Acknowledge one limitation.",
+        "type": "Public Health Writing",
+        "hint": "Reviewers always ask: why this method and not another? Answer it preemptively."
+    },
+    {
+        "title": "🔬 Abstract from Scratch",
+        "prompt": "Write a 5-sentence abstract for one of your papers: (1) Background, (2) Gap, (3) Methods, (4) Key Finding, (5) Implication.",
+        "type": "Public Health Writing",
+        "hint": "Each sentence does exactly one job. No sentence should do two jobs."
+    }
+]
+
+# Filter by type
+warmup_type = st.radio(
+    "Exercise Type:",
+    ["All", "Argument Building", "Public Health Writing"],
+    horizontal=True,
+    key="warmup_type"
+)
+
+filtered_warmups = [
+    w for w in WARMUP_EXERCISES
+    if warmup_type == "All" or w['type'] == warmup_type
+]
+
+# Random exercise picker
+if 'current_warmup_idx' not in st.session_state:
+    st.session_state.current_warmup_idx = 0
+
+col_pick1, col_pick2 = st.columns([1, 3])
+if col_pick1.button("🎲 Random Exercise", use_container_width=True):
+    st.session_state.current_warmup_idx = random.randint(0, len(filtered_warmups) - 1)
+    st.rerun()
+
+current_exercise = filtered_warmups[st.session_state.current_warmup_idx % len(filtered_warmups)]
+
+# Display exercise card
+st.markdown(
+    f'<div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);'
+    f'border-left:4px solid #f1c40f;border-radius:10px;padding:20px;'
+    f'color:#f0e6c8;margin:12px 0;">'
+    f'<b style="color:#f1c40f;font-size:1.1rem;">{current_exercise["title"]}</b>'
+    f'<span style="float:right;background:#f1c40f22;color:#f1c40f;'
+    f'padding:2px 10px;border-radius:12px;font-size:0.78rem;">{current_exercise["type"]}</span><br><br>'
+    f'<div style="font-size:1.0rem;line-height:1.7;margin-bottom:12px;">{current_exercise["prompt"]}</div>'
+    f'<div style="color:#f1c40f;opacity:0.7;font-size:0.85rem;">💡 {current_exercise["hint"]}</div>'
+    f'</div>',
+    unsafe_allow_html=True
+)
+
+# Writing area
+warmup_response = st.text_area(
+    "Your response:",
+    placeholder="Start writing — no pressure, this is warmup...",
+    key=f"warmup_{st.session_state.current_warmup_idx}",
+    height=150
+)
+
+w_col1, w_col2 = st.columns(2)
+
+if w_col1.button("🦇 Get AI Feedback", use_container_width=True, key="warmup_feedback_btn"):
+    if warmup_response:
+        with st.spinner("Batman is reviewing your argument..."):
+            try:
+                import anthropic
+                client = anthropic.Anthropic()
+                message = client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=1024,
+                    messages=[{
+                        "role": "user",
+                        "content": f"""You are an expert academic writing coach for public health doctoral students.
+
+Exercise prompt: {current_exercise['prompt']}
+
+Student's response:
+\"\"\"{warmup_response}\"\"\"
+
+Give concise, specific feedback in this format:
+**💪 Strengths:** (1-2 sentences on what works)
+**⚔️ Sharpen This:** (1-2 specific improvements)
+**✨ Rewritten Version:** (a stronger version of their response)
+**🦇 Verdict:** (one punchy Batman-themed line)
+
+Be direct, encouraging, and doctoral-level specific."""
+                    }]
+                )
+                feedback = message.content[0].text
+                st.markdown(
+                    f'<div style="background:linear-gradient(135deg,#1a3a1a,#0d2b0d);'
+                    f'border-left:4px solid #2ecc71;border-radius:10px;padding:20px;'
+                    f'color:#d5f5e3;margin:12px 0;animation:slide-in 0.5s ease;">'
+                    f'<b style="color:#2ecc71;font-size:1.1rem;">🦇 AI Feedback</b><br><br>'
+                    f'<div style="white-space:pre-wrap;line-height:1.7;">{feedback}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+                # Award XP for completing a warmup
+                st.session_state.xp += 15
+                st.session_state.celebration_xp = 15
+                save_all_progress()
+                st.toast("Warmup Complete! +15 XP", icon="🦇")
+            except Exception as e:
+                st.error(f"Feedback failed: {e}")
+    else:
+        st.warning("Write something first before asking for feedback!")
+
+if w_col2.button("⏭️ Next Exercise", use_container_width=True, key="next_warmup_btn"):
+    st.session_state.current_warmup_idx = (st.session_state.current_warmup_idx + 1) % len(filtered_warmups)
+    st.rerun()
+
+st.divider()
+
+
     # ── SENTENCE SLAYER ──
     st.subheader("⚡ The Sentence Slayer")
     st.caption("Paste a sentence or paragraph. AI will fix grammar, flag weak writing, and rewrite it.")
