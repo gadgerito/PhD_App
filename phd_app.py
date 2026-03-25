@@ -25,7 +25,7 @@ def check_password():
     st.markdown("## 🦇 Bat-Computer Access")
     password = st.text_input("Enter password:", type="password")
     if st.button("Enter the Batcave"):
-        if password == st.secrets["app"]["password"]
+        if password == st.secrets["app"]["password"]:
             st.session_state.authenticated = True
             st.rerun()
         else:
