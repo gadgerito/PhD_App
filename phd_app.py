@@ -21,7 +21,11 @@ st.set_page_config(layout="wide", page_title="The Dark Knight of Public Health",
 # -- MongoDB --
 @st.cache_resource
 def get_db():
-    client = MongoClient(st.secrets["mongo"]["uri"])
+    client = MongoClient(
+        st.secrets["mongo"]["uri"],
+        tls=True,
+        tlsAllowInvalidCertificates=True
+    )
     return client["phd_app"]["progress"]
 
 # --- SERVE STATIC FOLDER ===
