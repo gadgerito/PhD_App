@@ -2289,14 +2289,7 @@ with t6:
 
         # ── AI MIND MAP GENERATOR ──
         st.subheader("🗺️ Generate Mind Map")
-        st.caption("AI will analyze your notebook entries and generate a mind map showing connections across your papers.")
-
-        map_style = st.radio(
-            "Map style:",
-            ["🔵 Visual Node Map", "📋 Outline/Tree View", "🔀 Both"],
-            horizontal=True,
-            key="map_style"
-        )
+        st.caption("AI will analyze your notebook entries and generate an interactive visual mind map.")
 
         focus_area = st.text_input(
             "Focus on a specific theme (optional):",
@@ -2322,54 +2315,51 @@ with t6:
                             for e in entries_to_map
                         ])
 
-                        style_instruction = ""
-                        if "Visual" in map_style:
-                            style_instruction = """
-First, generate a VISUAL MIND MAP using this exact format:
-CENTRAL THEME: [one overarching theme connecting all thoughts]
-BRANCHES:
-- BRANCH 1: [theme name]
-  - Node: [idea]
-    - Connection: [how it links to another paper/idea]
-  - Node: [idea]
-- BRANCH 2: [theme name]
-  ...
-CROSS-PAPER CONNECTIONS:
-- [Paper X idea] ←→ [Paper Y idea]: [why they connect]
-"""
-                        if "Outline" in map_style:
-                            style_instruction += """
-Then generate an OUTLINE/TREE VIEW:
-I. [Main Theme]
-   A. [Paper 1 contribution]
-      1. [specific idea]
-      2. [specific idea]
-   B. [Paper 2 contribution]
-      ...
-II. [Second Main Theme]
-   ...
-"""
-                        if "Both" in map_style:
-                            style_instruction = """
-Generate BOTH a visual mind map AND an outline tree view as described above.
-"""
-
                         prompt = f"""You are a doctoral writing coach helping a PhD student in public health connect ideas across their dissertation papers.
 
 The student's notebook entries are:
 {entries_text}
 
 Their dissertation covers:
-- Paper 1: Home-Based Medical Care (HBMC) — models, policy, reimbursement
-- Paper 2: Climate disasters and older adults — vulnerability, resilience, equity
-- Paper 3: Delphi methodology and disaster preparedness policy
-- Paper 4: Subnational Comparative Policy Analysis (SCPA) of HBMC emergency preparedness
+- Paper 1: Home-Based Medical Care (HBMC)
+- Paper 2: Climate disasters and older adults
+- Paper 3: Delphi methodology and disaster preparedness
+- Paper 4: Subnational Comparative Policy Analysis (SCPA)
 
-{style_instruction}
+Return ONLY valid JSON in this exact format, nothing else:
+{{
+  "central": "One overarching theme connecting all thoughts",
+  "branches": [
+    {{
+      "id": "b1",
+      "label": "Branch Theme Name",
+      "color": "#3498db",
+      "nodes": [
+        {{
+          "id": "n1",
+          "label": "Idea from notes (keep under 8 words)",
+          "paper": "Paper 1: HBMC"
+        }}
+      ]
+    }}
+  ],
+  "connections": [
+    {{
+      "from": "n1",
+      "to": "n2",
+      "label": "why they connect (under 6 words)"
+    }}
+  ]
+}}
 
-Focus on: identifying the golden thread connecting these ideas, surfacing non-obvious connections across papers, and highlighting gaps or tensions worth exploring.
+Use these colors per paper:
+- Paper 1: HBMC = #3498db
+- Paper 2: Climate & Aging = #2ecc71  
+- Paper 3: Delphi & Policy = #e67e22
+- Paper 4: SCPA = #9b59b6
+- General = #f1c40f
 
-Be specific and doctoral-level. Reference the actual content of their notes."""
+Create 2-4 branches with 2-4 nodes each. Make connections across papers where ideas genuinely link."""
 
                         message = client.messages.create(
                             model="claude-sonnet-4-20250514",
@@ -2377,37 +2367,225 @@ Be specific and doctoral-level. Reference the actual content of their notes."""
                             messages=[{"role": "user", "content": prompt}]
                         )
 
-                        mindmap_result = message.content[0].text
-                        st.session_state.mindmap_data = mindmap_result
-
-                        st.markdown(
-                            f'<div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);'
-                            f'border-left:4px solid #f1c40f;border-radius:10px;padding:20px;'
-                            f'color:#f0e6c8;margin:12px 0;">'
-                            f'<b style="color:#f1c40f;font-size:1.1rem;">🦇 Your Mind Map</b><br><br>'
-                            f'<div style="white-space:pre-wrap;line-height:1.8;font-family:monospace;">{mindmap_result}</div>'
-                            f'</div>',
-                            unsafe_allow_html=True
-                        )
+                        import json
+                        raw = message.content[0].text.strip()
+                        # Strip markdown fences if present
+                        if raw.startswith("```"):
+                            raw = raw.split("```")[1]
+                            if raw.startswith("json"):
+                                raw = raw[4:]
+                        map_data = json.loads(raw.strip())
+                        st.session_state.mindmap_data = map_data
 
                         st.session_state.xp += 25
                         st.session_state.celebration_xp = 25
                         save_all_progress()
                         st.toast("Mind map generated! +25 XP", icon="🦇")
 
-                        # Download as text
-                        st.download_button(
-                            label="⬇️ Download Mind Map",
-                            data=mindmap_result,
-                            file_name="batman_mindmap.txt",
-                            mime="text/plain",
-                            use_container_width=True
-                        )
-
                     except Exception as e:
                         st.error(f"Mind map failed: {e}")
             else:
-                st.warning("No matching entries found — add some thoughts first or adjust your focus filter!")
+                st.warning("No matching entries — add some thoughts first!")
 
-    else:
-        st.info("No thoughts yet — add some ideas above to get started! 🦇")
+        # ── RENDER VISUAL MIND MAP ──
+        if st.session_state.get('mindmap_data'):
+            map_data = st.session_state.mindmap_data
+            import json
+            map_json = json.dumps(map_data)
+
+            components.html(f"""
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {{ margin: 0; background: #0a0a1a; font-family: Arial, sans-serif; overflow: hidden; }}
+  canvas {{ display: block; }}
+  #tooltip {{
+    position: absolute; background: rgba(0,0,0,0.85); color: #f0e6c8;
+    padding: 6px 12px; border-radius: 8px; font-size: 13px;
+    pointer-events: none; display: none; border: 1px solid #f1c40f;
+    max-width: 200px; word-wrap: break-word;
+  }}
+</style>
+</head>
+<body>
+<canvas id="mindmap"></canvas>
+<div id="tooltip"></div>
+<script>
+const data = {map_json};
+const canvas = document.getElementById('mindmap');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+
+canvas.width = window.innerWidth;
+canvas.height = 520;
+
+const W = canvas.width, H = canvas.height;
+const cx = W / 2, cy = H / 2;
+
+// Build node positions
+const nodes = [];
+const edges = [];
+
+// Central node
+nodes.push({{ id: 'central', label: data.central, x: cx, y: cy, r: 50, color: '#f1c40f', textColor: '#000', type: 'central' }});
+
+const branchCount = data.branches.length;
+data.branches.forEach((branch, bi) => {{
+  const bAngle = (bi / branchCount) * Math.PI * 2 - Math.PI / 2;
+  const bx = cx + Math.cos(bAngle) * 170;
+  const by = cy + Math.sin(bAngle) * 140;
+  nodes.push({{ id: branch.id, label: branch.label, x: bx, y: by, r: 38, color: branch.color, textColor: '#fff', type: 'branch' }});
+  edges.push({{ from: 'central', to: branch.id, color: branch.color, label: '' }});
+
+  const nodeCount = branch.nodes.length;
+  branch.nodes.forEach((node, ni) => {{
+    const spread = 0.7;
+    const nAngle = bAngle + (ni - (nodeCount - 1) / 2) * spread;
+    const nx = bx + Math.cos(nAngle) * 150;
+    const ny = by + Math.sin(nAngle) * 120;
+    nodes.push({{ id: node.id, label: node.label, x: nx, y: ny, r: 28, color: branch.color + 'cc', textColor: '#fff', type: 'node', paper: node.paper }});
+    edges.push({{ from: branch.id, to: node.id, color: branch.color, label: '' }});
+  }});
+}});
+
+// Cross-paper connections
+if (data.connections) {{
+  data.connections.forEach(conn => {{
+    edges.push({{ from: conn.from, to: conn.to, color: '#f1c40f44', label: conn.label, dashed: true }});
+  }});
+}}
+
+function getNode(id) {{ return nodes.find(n => n.id === id); }}
+
+function drawWrappedText(text, x, y, maxWidth, lineHeight, color) {{
+  ctx.fillStyle = color;
+  const words = text.split(' ');
+  let line = '';
+  const lines = [];
+  words.forEach(word => {{
+    const test = line + word + ' ';
+    if (ctx.measureText(test).width > maxWidth && line) {{
+      lines.push(line.trim());
+      line = word + ' ';
+    }} else {{ line = test; }}
+  }});
+  lines.push(line.trim());
+  const startY = y - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((l, i) => {{
+    ctx.fillText(l, x, startY + i * lineHeight);
+  }});
+}}
+
+function draw() {{
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, W * 0.7);
+  grad.addColorStop(0, '#0f0f2e');
+  grad.addColorStop(1, '#0a0a1a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw edges
+  edges.forEach(edge => {{
+    const from = getNode(edge.from);
+    const to = getNode(edge.to);
+    if (!from || !to) return;
+    ctx.beginPath();
+    ctx.strokeStyle = edge.color || '#ffffff44';
+    ctx.lineWidth = edge.dashed ? 1.5 : 2;
+    if (edge.dashed) ctx.setLineDash([5, 5]);
+    else ctx.setLineDash([]);
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Edge label
+    if (edge.label) {{
+      ctx.font = '10px Arial';
+      ctx.fillStyle = '#f1c40f99';
+      ctx.textAlign = 'center';
+      ctx.fillText(edge.label, (from.x + to.x) / 2, (from.y + to.y) / 2 - 6);
+    }}
+  }});
+
+  // Draw nodes
+  nodes.forEach(node => {{
+    // Glow
+    const glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, node.r * 1.5);
+    glow.addColorStop(0, node.color + '44');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, node.r * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Circle
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
+    ctx.fillStyle = node.color;
+    ctx.fill();
+    ctx.strokeStyle = node.type === 'central' ? '#fff' : node.color + 'ff';
+    ctx.lineWidth = node.type === 'central' ? 3 : 1.5;
+    ctx.stroke();
+
+    // Text
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const fontSize = node.type === 'central' ? 11 : node.type === 'branch' ? 10 : 9;
+    ctx.font = `bold ${{fontSize}}px Arial`;
+    drawWrappedText(node.label, node.x, node.y, node.r * 1.7, fontSize + 3, node.textColor);
+  }});
+}}
+
+draw();
+
+// Tooltip on hover
+canvas.addEventListener('mousemove', e => {{
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  let found = false;
+  nodes.forEach(node => {{
+    const dx = mx - node.x, dy = my - node.y;
+    if (Math.sqrt(dx*dx + dy*dy) < node.r) {{
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 10) + 'px';
+      tooltip.style.top = (e.clientY - 30) + 'px';
+      tooltip.innerHTML = node.paper ? `<b>${{node.label}}</b><br><i>${{node.paper}}</i>` : `<b>${{node.label}}</b>`;
+      found = true;
+    }}
+  }});
+  if (!found) tooltip.style.display = 'none';
+}});
+
+// Drag nodes
+let dragging = null, dragOffX = 0, dragOffY = 0;
+canvas.addEventListener('mousedown', e => {{
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  nodes.forEach(node => {{
+    const dx = mx - node.x, dy = my - node.y;
+    if (Math.sqrt(dx*dx + dy*dy) < node.r) {{
+      dragging = node; dragOffX = dx; dragOffY = dy;
+    }}
+  }});
+}});
+canvas.addEventListener('mousemove', e => {{
+  if (!dragging) return;
+  const rect = canvas.getBoundingClientRect();
+  dragging.x = e.clientX - rect.left - dragOffX;
+  dragging.y = e.clientY - rect.top - dragOffY;
+  draw();
+}});
+canvas.addEventListener('mouseup', () => {{ dragging = null; }});
+</script>
+</body>
+</html>
+""", height=540)
+
+            if st.button("🗑️ Clear Mind Map", key="clear_mindmap"):
+                st.session_state.mindmap_data = None
+                st.rerun()
