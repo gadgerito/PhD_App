@@ -976,14 +976,6 @@ with st.sidebar:
                 st.session_state.timer_paused = False
                 st.session_state.target_time = None
                 st.rerun()
-
-        else:
-            if st.button("🚀 Start 25m Sprint", use_container_width=True, key="start_btn"):
-                st.session_state.target_time = datetime.now() + timedelta(minutes=25)
-                st.session_state.timer_running = True
-                st.session_state.timer_paused = False
-                st.rerun()
-
     sidebar_pomodoro()
 
     if not st.session_state.get('timer_running'):
