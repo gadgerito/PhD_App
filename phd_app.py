@@ -68,7 +68,7 @@ def load_all_progress():
         d.get("claimed_rewards", []),
         d.get("custom_vault", {}),
         d.get("last_task_id", {}),
-        d.get(""notebook_entries", {}),
+        d.get("notebook_entries", []),
               "")
         )
     except Exception as e:
