@@ -67,13 +67,12 @@ def load_all_progress():
         d.get("custom_rewards", []),
         d.get("claimed_rewards", []),
         d.get("custom_vault", {}),
-        d.get("last_task_id", {}),
+        d.get("last_task_id", ""),
         d.get("notebook_entries", []),
-              "")
         )
     except Exception as e:
         print(f"Error loading progress: {e}")
-        return 0, set(), {}, {}, [], [], {}, ""
+        return 0, set(), {}, {}, [], [], {}, "", []
 
 
 def save_all_progress():
