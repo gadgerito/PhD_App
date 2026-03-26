@@ -87,9 +87,9 @@ def save_all_progress():
             "custom_rewards": st.session_state.custom_rewards,
             "claimed_rewards": st.session_state.claimed_rewards,
             "custom_vault": st.session_state.custom_vault,
-            "last_task_id": st.session_state.get("last_task_id",
-            "notebook_entries": st.session_state.get("notebook_entries", []),"")
-        }  
+            "last_task_id": st.session_state.get("last_task_id", ""),
+            "notebook_entries": st.session_state.get("notebook_entries", []),
+        }
         db.replace_one({"_id": "main"}, data, upsert=True)
     except Exception as e:
         st.error(f"Save failed: {e}")
