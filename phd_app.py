@@ -67,7 +67,9 @@ def load_all_progress():
         d.get("custom_rewards", []),
         d.get("claimed_rewards", []),
         d.get("custom_vault", {}),
-        d.get("last_task_id", "")
+        d.get("last_task_id", {}),
+        d.get(""notebook_entries", []),
+              "")
         )
     except Exception as e:
         print(f"Error loading progress: {e}")
@@ -89,19 +91,21 @@ def save_all_progress():
             "last_task_id": st.session_state.get("last_task_id", "")
         }  
         db.replace_one({"_id": "main"}, data, upsert=True)
+        "notebook_entries": st.session_state.get("notebook_entries", []),
     except Exception as e:
         st.error(f"Save failed: {e}")
 # ─────────────────────────────────────────────
 # 2. INITIALIZATION
 # ─────────────────────────────────────────────
 if 'initialized' not in st.session_state:
-    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task = load_all_progress()
+    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, notebook = load_all_progress()
     st.session_state.xp = xp
     st.session_state.completed_tasks = comp_tasks
     st.session_state.saved_responses = resps
     st.session_state.task_timers = timers
     st.session_state.custom_rewards = custom_r
     st.session_state.claimed_rewards = claimed
+    st.session_state.notebook_entries = notebook
     st.session_state.custom_vault = vault if vault else {
         "🚀 Openers": ["Building upon...", "Premised on...", "Centrally to..."],
         "⚖️ Contrast": ["Notwithstanding", "Conversely", "Paradoxically"],
