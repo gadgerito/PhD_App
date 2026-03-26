@@ -1117,8 +1117,8 @@ Be direct, specific, and doctoral-level. Keep responses concise — this is a si
 # ─────────────────────────────────────────────
 # 11. TABS
 # ─────────────────────────────────────────────
-t1, t2, t3, t4, t5 = st.tabs([
-    "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review"
+t1, t2, t3, t4, t5, t6 = st.tabs([
+    "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review", "🧠 Mind Map"
 ])
 
 # ── TAB 1: TASK BOARD ──────────────────────
@@ -2183,3 +2183,228 @@ Format your response with these headers:
         with st.expander("📋 Reviewed Sections"):
             for s in st.session_state.reviewed_sections:
                 st.write(f"✅ {s}")
+# ── TAB 6: MIND MAP & NOTEBOOK ────────────────────
+with t6:
+    st.header("🧠 Mind Map & Idea Notebook")
+    q7, s7 = random.choice(BATMAN_QUOTES)
+    st.markdown(quote_box(q7, s7), unsafe_allow_html=True)
+    st.caption("Capture thoughts, connect ideas across papers, and generate visual mind maps.")
+
+    # Initialize notebook state
+    if 'notebook_entries' not in st.session_state:
+        st.session_state.notebook_entries = []
+    if 'mindmap_data' not in st.session_state:
+        st.session_state.mindmap_data = None
+
+    # ── THOUGHT CAPTURE ──
+    st.subheader("💭 Capture a Thought")
+
+    nb_col1, nb_col2 = st.columns([3, 1])
+    thought_input = nb_col1.text_area(
+        "What's on your mind?",
+        placeholder="e.g. 'HCBS waivers connect to disaster preparedness because states that have stronger waiver programs may also have better emergency protocols for home-based patients...'",
+        key="thought_input",
+        height=100
+    )
+
+    paper_tag = nb_col2.selectbox(
+        "Tag to paper:",
+        ["General", "Paper 1: HBMC", "Paper 2: Climate & Aging", "Paper 3: Delphi & Policy", "Paper 4: SCPA"],
+        key="thought_paper_tag"
+    )
+
+    theme_tag = nb_col2.text_input(
+        "Theme tag:",
+        placeholder="e.g. policy, equity, methods",
+        key="thought_theme_tag"
+    )
+
+    if st.button("➕ Add to Notebook", use_container_width=True, key="add_thought_btn"):
+        if thought_input:
+            st.session_state.notebook_entries.append({
+                "id": len(st.session_state.notebook_entries),
+                "thought": thought_input,
+                "paper": paper_tag,
+                "theme": theme_tag,
+                "timestamp": datetime.now().strftime("%m/%d %H:%M")
+            })
+            save_all_progress()
+            st.success("Thought captured! 🦇")
+            st.rerun()
+        else:
+            st.warning("Type something first!")
+
+    st.divider()
+
+    # ── NOTEBOOK ENTRIES ──
+    if st.session_state.notebook_entries:
+        st.subheader(f"📓 Notebook ({len(st.session_state.notebook_entries)} thoughts)")
+
+        # Filter
+        filter_col1, filter_col2 = st.columns(2)
+        filter_paper = filter_col1.selectbox(
+            "Filter by paper:",
+            ["All"] + ["General", "Paper 1: HBMC", "Paper 2: Climate & Aging", "Paper 3: Delphi & Policy", "Paper 4: SCPA"],
+            key="nb_filter_paper"
+        )
+        filter_theme = filter_col2.text_input("Filter by theme:", key="nb_filter_theme")
+
+        filtered_entries = [
+            e for e in st.session_state.notebook_entries
+            if (filter_paper == "All" or e['paper'] == filter_paper)
+            and (not filter_theme or filter_theme.lower() in e.get('theme', '').lower())
+        ]
+
+        for i, entry in enumerate(filtered_entries):
+            paper_colors = {
+                "Paper 1: HBMC": "#3498db",
+                "Paper 2: Climate & Aging": "#2ecc71",
+                "Paper 3: Delphi & Policy": "#e67e22",
+                "Paper 4: SCPA": "#9b59b6",
+                "General": "#f1c40f"
+            }
+            color = paper_colors.get(entry['paper'], "#f1c40f")
+            with st.expander(f"💭 {entry['thought'][:60]}{'...' if len(entry['thought']) > 60 else ''} — {entry['timestamp']}"):
+                st.markdown(
+                    f'<div style="border-left:3px solid {color};padding:8px 12px;'
+                    f'background:#f9f9f9;border-radius:6px;">'
+                    f'{entry["thought"]}<br><br>'
+                    f'<span style="background:{color}22;color:{color};padding:2px 8px;'
+                    f'border-radius:10px;font-size:0.8rem;font-weight:bold;">{entry["paper"]}</span>'
+                    f'{f" &nbsp; <span style=\'color:#888;font-size:0.8rem;\'>#{entry[chr(116)+chr(104)+chr(101)+chr(109)+chr(101)]}</span>" if entry.get("theme") else ""}'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+                if st.button("🗑️ Delete", key=f"del_thought_{entry['id']}"):
+                    st.session_state.notebook_entries = [
+                        e for e in st.session_state.notebook_entries if e['id'] != entry['id']
+                    ]
+                    save_all_progress()
+                    st.rerun()
+
+        st.divider()
+
+        # ── AI MIND MAP GENERATOR ──
+        st.subheader("🗺️ Generate Mind Map")
+        st.caption("AI will analyze your notebook entries and generate a mind map showing connections across your papers.")
+
+        map_style = st.radio(
+            "Map style:",
+            ["🔵 Visual Node Map", "📋 Outline/Tree View", "🔀 Both"],
+            horizontal=True,
+            key="map_style"
+        )
+
+        focus_area = st.text_input(
+            "Focus on a specific theme (optional):",
+            placeholder="e.g. 'policy barriers' or 'equity' or leave blank for all thoughts",
+            key="map_focus"
+        )
+
+        if st.button("🦇 Generate Mind Map", use_container_width=True, key="gen_mindmap_btn"):
+            entries_to_map = [
+                e for e in st.session_state.notebook_entries
+                if not focus_area or focus_area.lower() in e['thought'].lower()
+                or focus_area.lower() in e.get('theme', '').lower()
+            ]
+
+            if entries_to_map:
+                with st.spinner("Batman is connecting the dots..."):
+                    try:
+                        import anthropic
+                        client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+
+                        entries_text = "\n".join([
+                            f"[{e['paper']} | {e.get('theme', 'general')}]: {e['thought']}"
+                            for e in entries_to_map
+                        ])
+
+                        style_instruction = ""
+                        if "Visual" in map_style:
+                            style_instruction = """
+First, generate a VISUAL MIND MAP using this exact format:
+CENTRAL THEME: [one overarching theme connecting all thoughts]
+BRANCHES:
+- BRANCH 1: [theme name]
+  - Node: [idea]
+    - Connection: [how it links to another paper/idea]
+  - Node: [idea]
+- BRANCH 2: [theme name]
+  ...
+CROSS-PAPER CONNECTIONS:
+- [Paper X idea] ←→ [Paper Y idea]: [why they connect]
+"""
+                        if "Outline" in map_style:
+                            style_instruction += """
+Then generate an OUTLINE/TREE VIEW:
+I. [Main Theme]
+   A. [Paper 1 contribution]
+      1. [specific idea]
+      2. [specific idea]
+   B. [Paper 2 contribution]
+      ...
+II. [Second Main Theme]
+   ...
+"""
+                        if "Both" in map_style:
+                            style_instruction = """
+Generate BOTH a visual mind map AND an outline tree view as described above.
+"""
+
+                        prompt = f"""You are a doctoral writing coach helping a PhD student in public health connect ideas across their dissertation papers.
+
+The student's notebook entries are:
+{entries_text}
+
+Their dissertation covers:
+- Paper 1: Home-Based Medical Care (HBMC) — models, policy, reimbursement
+- Paper 2: Climate disasters and older adults — vulnerability, resilience, equity
+- Paper 3: Delphi methodology and disaster preparedness policy
+- Paper 4: Subnational Comparative Policy Analysis (SCPA) of HBMC emergency preparedness
+
+{style_instruction}
+
+Focus on: identifying the golden thread connecting these ideas, surfacing non-obvious connections across papers, and highlighting gaps or tensions worth exploring.
+
+Be specific and doctoral-level. Reference the actual content of their notes."""
+
+                        message = client.messages.create(
+                            model="claude-sonnet-4-20250514",
+                            max_tokens=2000,
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+
+                        mindmap_result = message.content[0].text
+                        st.session_state.mindmap_data = mindmap_result
+
+                        st.markdown(
+                            f'<div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);'
+                            f'border-left:4px solid #f1c40f;border-radius:10px;padding:20px;'
+                            f'color:#f0e6c8;margin:12px 0;">'
+                            f'<b style="color:#f1c40f;font-size:1.1rem;">🦇 Your Mind Map</b><br><br>'
+                            f'<div style="white-space:pre-wrap;line-height:1.8;font-family:monospace;">{mindmap_result}</div>'
+                            f'</div>',
+                            unsafe_allow_html=True
+                        )
+
+                        st.session_state.xp += 25
+                        st.session_state.celebration_xp = 25
+                        save_all_progress()
+                        st.toast("Mind map generated! +25 XP", icon="🦇")
+
+                        # Download as text
+                        st.download_button(
+                            label="⬇️ Download Mind Map",
+                            data=mindmap_result,
+                            file_name="batman_mindmap.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
+
+                    except Exception as e:
+                        st.error(f"Mind map failed: {e}")
+            else:
+                st.warning("No matching entries found — add some thoughts first or adjust your focus filter!")
+
+    else:
+        st.info("No thoughts yet — add some ideas above to get started! 🦇")
