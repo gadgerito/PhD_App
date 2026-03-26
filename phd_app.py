@@ -925,23 +925,63 @@ with st.sidebar:
     @st.fragment(run_every="1s")
     def sidebar_pomodoro():
         if st.session_state.get('timer_running') and st.session_state.get('target_time'):
-            remaining = st.session_state.target_time - datetime.now()
-            total_seconds = int(remaining.total_seconds())
-            if total_seconds > 0:
-                mins, secs = divmod(total_seconds, 60)
-                label = f"⏳ Slaying: {selected_mission.split(':')[0]}"
-                if mins < 5:
-                    label = f"🔥 FINAL PUSH: {selected_mission.split(':')[0]}"
-                st.metric(label, f"{mins:02d}:{secs:02d}")
+            if not st.session_state.get('timer_paused'):
+                remaining = st.session_state.target_time - datetime.now()
+                total_seconds = int(remaining.total_seconds())
+                if total_seconds > 0:
+                    mins, secs = divmod(total_seconds, 60)
+                    label = f"⏳ Slaying: {selected_mission.split(':')[0]}"
+                    if mins < 5:
+                        label = f"🔥 FINAL PUSH: {selected_mission.split(':')[0]}"
+                    st.metric(label, f"{mins:02d}:{secs:02d}")
+                else:
+                    st.session_state.timer_running = False
+                    task_id = selected_mission.split(":")[0]
+                    st.session_state.task_timers[task_id] = \
+                        st.session_state.task_timers.get(task_id, 0) + 25
+                    st.session_state.xp += 25
+                    st.session_state.pomodoro_done = True
+                    save_all_progress()
+                    st.balloons()
+                    st.rerun()
             else:
+                st.warning("⏸️ Timer paused")
+
+            # Pause/Resume + Stop buttons inside fragment
+            p_col1, p_col2 = st.columns(2)
+            if st.session_state.get('timer_paused'):
+                if p_col1.button("▶️ Resume", use_container_width=True, key="resume_btn"):
+                    paused_duration = datetime.now() - st.session_state.pause_start
+                    st.session_state.target_time += paused_duration
+                    st.session_state.timer_paused = False
+                    st.rerun()
+            else:
+                if p_col1.button("⏸️ Pause", use_container_width=True, key="pause_btn"):
+                    st.session_state.timer_paused = True
+                    st.session_state.pause_start = datetime.now()
+                    st.rerun()
+
+            if p_col2.button("🛑 Stop & Save", use_container_width=True, key="stop_btn"):
+                if st.session_state.get('target_time'):
+                    elapsed_mins = int((datetime.now() - (st.session_state.target_time - timedelta(minutes=25))).total_seconds() / 60)
+                    if elapsed_mins > 0:
+                        task_id = selected_mission.split(":")[0]
+                        st.session_state.task_timers[task_id] = \
+                            st.session_state.task_timers.get(task_id, 0) + elapsed_mins
+                        st.session_state.xp += elapsed_mins
+                        st.session_state.celebration_xp = elapsed_mins
+                        save_all_progress()
+                        st.success(f"Saved {elapsed_mins}m! +{elapsed_mins} XP")
                 st.session_state.timer_running = False
-                task_id = selected_mission.split(":")[0]
-                st.session_state.task_timers[task_id] = \
-                    st.session_state.task_timers.get(task_id, 0) + 25
-                st.session_state.xp += 25
-                st.session_state.pomodoro_done = True
-                save_all_progress()
-                st.balloons()
+                st.session_state.timer_paused = False
+                st.session_state.target_time = None
+                st.rerun()
+
+        else:
+            if st.button("🚀 Start 25m Sprint", use_container_width=True, key="start_btn"):
+                st.session_state.target_time = datetime.now() + timedelta(minutes=25)
+                st.session_state.timer_running = True
+                st.session_state.timer_paused = False
                 st.rerun()
 
     sidebar_pomodoro()
