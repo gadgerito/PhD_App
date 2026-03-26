@@ -1019,7 +1019,111 @@ with st.sidebar:
     if st.button("💾 Force Manual Save"):
         save_all_progress()
         st.success("Data Secured! 🦇")
+    st.divider()
+    st.subheader("📝 Writing Toolkit")
     
+    toolkit_tab = st.radio(
+        "Tool:",
+        ["🔄 Synonyms", "📋 Templates"],
+        horizontal=True,
+        key="toolkit_tab"
+    )
+    
+    if toolkit_tab == "🔄 Synonyms":
+        word_input = st.text_input(
+            "Word or phrase:",
+            placeholder="e.g. 'shows' or 'important'",
+            key="synonym_input"
+        )
+        
+        QUICK_SYNONYMS = {
+            "shows": ["demonstrates", "reveals", "indicates", "illustrates", "evidences"],
+            "important": ["critical", "essential", "paramount", "pivotal", "salient"],
+            "used": ["utilized", "employed", "applied", "leveraged", "implemented"],
+            "found": ["identified", "observed", "determined", "established", "documented"],
+            "increase": ["amplify", "augment", "expand", "escalate", "elevate"],
+            "decrease": ["diminish", "attenuate", "reduce", "mitigate", "decline"],
+            "many": ["numerous", "substantial", "considerable", "extensive", "myriad"],
+            "because": ["given that", "owing to", "in light of", "as a result of", "stemming from"],
+            "but": ["however", "nevertheless", "notwithstanding", "conversely", "yet"],
+            "also": ["furthermore", "additionally", "moreover", "in addition", "similarly"],
+            "says": ["argues", "contends", "posits", "asserts", "maintains"],
+            "help": ["facilitate", "support", "advance", "bolster", "undergird"],
+            "show": ["demonstrate", "reveal", "illustrate", "highlight", "elucidate"],
+            "need": ["require", "necessitate", "demand", "warrant", "call for"],
+            "get": ["obtain", "acquire", "attain", "yield", "generate"],
+            "use": ["employ", "utilize", "apply", "leverage", "harness"],
+            "big": ["substantial", "considerable", "significant", "pronounced", "marked"],
+            "small": ["minimal", "modest", "marginal", "limited", "negligible"],
+            "problem": ["challenge", "barrier", "impediment", "limitation", "constraint"],
+            "change": ["transformation", "shift", "transition", "modification", "evolution"],
+        }
+        
+        if word_input:
+            word_lower = word_input.lower().strip()
+            if word_lower in QUICK_SYNONYMS:
+                st.markdown("**Academic alternatives:**")
+                for syn in QUICK_SYNONYMS[word_lower]:
+                    st.markdown(
+                        f'<div style="background:#1a1a2e;border-left:2px solid #f1c40f;'
+                        f'padding:4px 10px;border-radius:4px;color:#f0e6c8;'
+                        f'font-size:0.85rem;margin:2px 0;">• {syn}</div>',
+                        unsafe_allow_html=True
+                    )
+            else:
+                if st.button("🦇 AI Synonyms", use_container_width=True, key="ai_syn_btn"):
+                    with st.spinner("Finding alternatives..."):
+                        try:
+                            import anthropic
+                            client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+                            message = client.messages.create(
+                                model="claude-sonnet-4-20250514",
+                                max_tokens=200,
+                                messages=[{"role": "user", "content": f"""Give 6 academic synonyms for "{word_input}" suitable for a public health dissertation. 
+Return ONLY a numbered list, no explanation:
+1. word — brief context note
+2. word — brief context note
+...etc"""}]
+                            )
+                            st.markdown(
+                                f'<div style="background:#1a1a2e;border-left:2px solid #f1c40f;'
+                                f'padding:8px 12px;border-radius:6px;color:#f0e6c8;font-size:0.83rem;">'
+                                f'{message.content[0].text}</div>',
+                                unsafe_allow_html=True
+                            )
+                        except Exception as e:
+                            st.error(f"Failed: {e}")
+
+    else:  # Templates
+        TEMPLATES = {
+            "🔗 Gap Statement": "While [existing literature] has established [X], less attention has been paid to [Y]. This gap is particularly salient given [context], suggesting a need for [your contribution].",
+            "⚖️ Contrast": "In contrast to [X], [Y] demonstrates [difference]. This distinction is consequential because [implication].",
+            "📊 Citing Evidence": "[Finding] (Author, Year). This suggests that [your interpretation], with implications for [policy/practice/theory].",
+            "🎯 Topic Sentence": "[This section/paper/study] argues that [claim], drawing on [evidence/framework] to demonstrate [contribution].",
+            "🔄 Transition": "Having established [previous point], this [section/paper] turns to [next point], examining how [connection].",
+            "⚡ Policy Implication": "These findings suggest that [policy recommendation], particularly for [specific population] in [context]. Implementation would require [action] by [actors].",
+            "🌍 Equity Framing": "The disproportionate impact on [population] reflects [structural factor], underscoring the need for [equity-focused intervention].",
+            "📝 Methods Justification": "[Method] was selected because [rationale]. This approach is particularly appropriate for [research question] given [justification]. A limitation of this method is [limitation], which was addressed by [mitigation].",
+            "🏁 Conclusion Move": "This [paper/section] has argued that [main claim]. By [contribution], this work advances [field] and has implications for [policy/practice]. Future research should examine [next steps].",
+        }
+
+        selected_template = st.selectbox(
+            "Template type:",
+            list(TEMPLATES.keys()),
+            key="template_select"
+        )
+
+        st.markdown(
+            f'<div style="background:#1a1a2e;border-left:3px solid #f1c40f;'
+            f'border-radius:6px;padding:10px 12px;color:#f0e6c8;'
+            f'font-size:0.82rem;margin:6px 0;line-height:1.6;">'
+            f'{TEMPLATES[selected_template]}</div>',
+            unsafe_allow_html=True
+        )
+
+        if st.button("📋 Copy Template", use_container_width=True, key="copy_template_btn"):
+            st.code(TEMPLATES[selected_template])
+            st.caption("Select all and copy from the box above!")
     st.divider()
     st.subheader("🦇 Writing Coach")
 
