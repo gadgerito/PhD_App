@@ -952,7 +952,7 @@ with st.sidebar:
         else:
             p_col1, p_col2 = st.columns(2)
             if st.session_state.get('timer_paused'):
-            if p_col1.button("▶️ Resume", use_container_width=True):
+                if p_col1.button("▶️ Resume", use_container_width=True):
                     paused_duration = datetime.now() - st.session_state.pause_start
                     st.session_state.target_time += paused_duration
                     st.session_state.timer_paused = False
