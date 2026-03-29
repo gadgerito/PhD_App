@@ -78,6 +78,7 @@ def load_all_progress():
         d.get("last_worked_date", ""),
         d.get("notebook_entries", []),
         d.get("section_timers", {}),
+        d.get("active_timer", {})
         )
     except Exception as e:
         st.error(f"MongoDB connection error: {e}")
@@ -100,7 +101,14 @@ def save_all_progress():
             "last_worked_section": st.session_state.get("last_worked_section", ""),
             "last_worked_date": st.session_state.get("last_worked_date", ""),
             "notebook_entries": st.session_state.get("notebook_entries", []),
-            "section_timers": st.session_state.get("section_timers", {}),
+            "section_timers": st.session_state.get("section_timers", {})
+            "active_timer": {
+                "running": st.session_state.get("timer_running", False),
+                "paused": st.session_state.get("timer_paused", False),
+                "target_time": target_str,
+                "pause _start" pause_str,
+                "mission": st_session_state.get("active_mission", "")
+            },
         }
         db.replace_one({"_id": "main"}, data, upsert=True)
     except Exception as e:
@@ -109,7 +117,7 @@ def save_all_progress():
 # 2. INITIALIZATION
 # ─────────────────────────────────────────────
 if 'initialized' not in st.session_state:
-    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers = load_all_progress()
+    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers, active_timer = load_all_progress()
     st.session_state.xp = xp
     st.session_state.completed_tasks = comp_tasks
     st.session_state.saved_responses = resps
@@ -127,6 +135,30 @@ if 'initialized' not in st.session_state:
     st.session_state.last_worked_section = last_worked_section
     st.session_state.last_worked_date = last_worked_date
     st.session_state.section_timers = section_timers if section_timers else {}
+
+    #OFFLINE TIMER CATCH-UP LOGIC
+    if active_timer.get("running"):
+        target_str= active_timer.get("target_time")
+        if target_str:
+            target_time = datetime.fromisoformat(target_str)
+            # If it wasn't paused and time is up, auto-log it!
+            if not active_timer.get("paused") and datetime.now() >= target_time:
+                task_id = active_timer.get("mission", "").split(":")[0]
+                if task_id:
+                    st.session_state.task_timers[task_id]= st.session_state.task_timers.get(task_id, 0) + 25
+                st.session_state.xp += 25
+                st.session_state.celebration_xp = 25
+                st.session_state.pomodoro_done = True
+                # Call save immediately to update DB and clear the active timer
+                save_all_progress() 
+            else:
+                # Still running or paused, restore state
+                st.session_state.timer_running = True
+                st.session_state.timer_paused = active_timer.get("paused", False)
+                st.session_state.target_time = target_time
+                st.session_state.active_mission = active_timer.get("mission", "")
+                if active_timer.get("pause_start"):
+                    st.session_state.pause_start = datetime.fromisoformat(active_timer["pause_start"])
     st.session_state.initialized = True
 
 # Celebration state — read ONCE at top of render, then reset so they don't replay next run
@@ -924,8 +956,182 @@ for _st_title, _st_ids in SECTION_TASKS.items():
     for _tid in _st_ids:
         task_to_sections.setdefault(_tid, []).append(_st_title)
 
+"""
+============================================================
+🦇 THE DARK KNIGHT OF PUBLIC HEALTH — EKT Feedback Round 2
+============================================================
+Emma Tsui's comments on Comprehensive Exams Final Draft
+
+SECTION NAMES match your phd_app.py exactly.
+New sections (not yet in app) are flagged — see NEW_SECTIONS_FOR_APP.
+
+To integrate:
+  1. Run insert_to_mongodb() to load feedback into MongoDB
+  2. Add NEW_SECTIONS_FOR_APP to SECTION_TASKS + COMPS_SECTIONS in phd_app.py
+  3. Every item has a doc_location field showing exactly where to find it in Word
+============================================================
+"""
+
+from datetime import datetime
+
+SOURCE_FILE = "Schiller_Comprehensive_Exams_-_Final_Draft_for_review_EKT.docx"
+REVIEWER = "Emma Tsui"
+FEEDBACK_ROUND = "EKT_Final_Draft"
+
+# ═══════════════════════════════════════════════════════════
+# NEW SECTIONS TO ADD TO SECTION_TASKS + COMPS_SECTIONS
+# ═══════════════════════════════════════════════════════════
+NEW_SECTION_TASKS_ENTRIES = {
+    "Exam Introduction": [],
+    "HBMC Conclusion": [],
+    "Climate Introduction": [],
+    "Resilience Theory": [],
+    "Socioeconomic and Environmental Factors": [],
+    "Existing Strategies and Identified Gaps": [],
+    "Climate Conclusion": [],
+    "Climate Appendix": [],
+    "Delphi Introduction": [],
+    "Overview of the Delphi Method": [],
+    "Variations of the Delphi Method": [],
+    "Delphi Applications": [],
+    "Delphi Synthesis": [],
+    "SCPA Introduction": [],
+    "Origins of CPA": [],
+    "SCPA as Research Design": [],
+    "Implications of SCPA for HBMC": [],
+}
+
+NEW_COMPS_SECTIONS_ENTRIES = [
+    {"title": "Exam Introduction", "paper": "General", "content": "Overall introduction to the comprehensive exam explaining the four papers and their connections."},
+    {"title": "HBMC Conclusion", "paper": "Paper 1: HBMC", "content": "Converging factors including an aging population, declining family caregivers, preference to age in place, and technological advancements contributing to increased HBMC adoption."},
+    {"title": "Climate Introduction", "paper": "Paper 2: Climate & Aging", "content": "Older adults, particularly the homebound, are especially vulnerable to natural disasters as climate change worsens severity and frequency."},
+    {"title": "Resilience Theory", "paper": "Paper 2: Climate & Aging", "content": "Resilience theory as applied to gerontology looks at dynamic adaptation of older adults under stressful conditions, shaped by individual, social, and structural factors."},
+    {"title": "Socioeconomic and Environmental Factors", "paper": "Paper 2: Climate & Aging", "content": "Socioeconomic status and environmental conditions shape how older adults are affected by climate-related events."},
+    {"title": "Existing Strategies and Identified Gaps", "paper": "Paper 2: Climate & Aging", "content": "Disaster risk management at varying levels. Limited efforts specifically targeting risks to older adults."},
+    {"title": "Climate Conclusion", "paper": "Paper 2: Climate & Aging", "content": "Intersection of natural disasters and aging demographic. Need for cross-sector systems."},
+    {"title": "Climate Appendix", "paper": "Paper 2: Climate & Aging", "content": "Tables: Resilience Theory framework, Socio-Ecological Levels, Climate Stressors x Geriatric Syndromes, Major U.S. Disasters 2017-2025."},
+    {"title": "Delphi Introduction", "paper": "Paper 3: Delphi & Policy", "content": "Need for research designs leveraging expert input when empirical evidence is limited."},
+    {"title": "Overview of the Delphi Method", "paper": "Paper 3: Delphi & Policy", "content": "Classical Delphi: expert panel, iterative surveys. Four core features: anonymity, iteration, controlled feedback, statistical aggregation."},
+    {"title": "Variations of the Delphi Method", "paper": "Paper 3: Delphi & Policy", "content": "Adaptations: Modified, Policy, Decision, Ranking-Type, and Real-Time Delphi."},
+    {"title": "Delphi Applications", "paper": "Paper 3: Delphi & Policy", "content": "Applied to system-level, household-level, and clinical domains for disaster preparedness."},
+    {"title": "Delphi Synthesis", "paper": "Paper 3: Delphi & Policy", "content": "Strong precedent for applying Delphi to complex, understudied areas of care for older adults."},
+    {"title": "SCPA Introduction", "paper": "Paper 4: SCPA", "content": "HBMC in unique position in U.S. healthcare. SCPA well suited to explain variation in emergency preparedness."},
+    {"title": "Origins of CPA", "paper": "Paper 4: SCPA", "content": "CPA emerged against behavioralist epistemology, treating variation as information rather than noise."},
+    {"title": "SCPA as Research Design", "paper": "Paper 4: SCPA", "content": "Scaling down increases observations, approximates controlled comparisons, captures causal complexity."},
+    {"title": "Implications of SCPA for HBMC", "paper": "Paper 4: SCPA", "content": "HBMC emergency preparedness is exactly the policy problem SCPA is designed for."},
+]
+
+
+# ═══════════════════════════════════════════════════════════
+# ALL FEEDBACK — section names match app exactly
+# doc_location tells you exactly where to find it in Word
+# ═══════════════════════════════════════════════════════════
+
+EKT_FEEDBACK = [
+    # ── PAPER 1: HBMC ──────────────────────────────────────
+    {"id": "ekt2_01", "paper": "General", "paper_num": 0, "section": "Exam Introduction", "comment_id": 1, "reviewer": REVIEWER, "feedback": "Include a page of introduction to the exam overall that gives readers a sense of why these four topics, and what you are doing in each section (i.e., main goals of each section)", "action_type": "major", "estimated_minutes": 60, "status": "pending", "tags": ["structure", "intro", "cross-paper"], "priority": "high", "doc_location": "Before Paper 1 — new standalone page"},
+    {"id": "ekt2_02", "paper": "HBMC", "paper_num": 1, "section": "Historical Context", "comment_id": 2, "reviewer": REVIEWER, "feedback": "Only focused on primary care...? (Clarify scope — is HBMC broader than primary care?)", "action_type": "clarification", "estimated_minutes": 15, "status": "pending", "tags": ["scope", "definition"], "priority": "medium", "doc_location": "Paper 1 > Historical Context > paragraph about ACA/HCBS"},
+    {"id": "ekt2_03", "paper": "HBMC", "paper_num": 1, "section": "Models of Home-Based Medical Care", "comment_id": 3, "reviewer": REVIEWER, "feedback": "Integrate figures and tables into the text (don't just reference them at the end)", "action_type": "substantive", "estimated_minutes": 30, "status": "pending", "tags": ["formatting", "tables", "figures"], "priority": "medium", "doc_location": "Paper 1 > Models of HBMC > where Figure 1 and Table 2 are referenced"},
+    {"id": "ekt2_04", "paper": "HBMC", "paper_num": 1, "section": "Models of Home-Based Medical Care", "comment_id": 4, "reviewer": REVIEWER, "feedback": "Put the HBMC models in the same order as they appear in Figure 1", "action_type": "quick_fix", "estimated_minutes": 10, "status": "pending", "tags": ["ordering", "consistency"], "priority": "low", "doc_location": "Paper 1 > Models > numbered list (HBPC, HHS, HaH, HBPaIC, LTSS)"},
+    {"id": "ekt2_05", "paper": "HBMC", "paper_num": 1, "section": "Models of Home-Based Medical Care", "comment_id": 5, "reviewer": REVIEWER, "feedback": "Clarify: 'best suited' — does HaH help older adults who HAVE experienced delirium/infections/falls, or help them AVOID these?", "action_type": "clarification", "estimated_minutes": 10, "status": "pending", "tags": ["clarity", "HaH"], "priority": "medium", "doc_location": "Paper 1 > Models > HaH subsection > 'best suited to the needs of frail, older adults including delirium, nosocomial infections, and falls'"},
+    {"id": "ekt2_06", "paper": "General", "paper_num": 0, "section": "Introduction to HBMC", "comment_id": 6, "reviewer": REVIEWER, "feedback": "Check inconsistent spacing around commas throughout the entire document", "action_type": "quick_fix", "estimated_minutes": 20, "status": "pending", "tags": ["formatting", "commas", "cross-paper"], "priority": "low", "doc_location": "All papers — Find & Replace for double-space after commas"},
+    {"id": "ekt2_07", "paper": "HBMC", "paper_num": 1, "section": "Models of Home-Based Medical Care", "comment_id": 7, "reviewer": REVIEWER, "feedback": "Clarify hospice vs palliative care. Note hospice = patients likely to die within 6 months. Define 'severe illness' in HBPaIC.", "action_type": "substantive", "estimated_minutes": 25, "status": "pending", "tags": ["definition", "hospice", "palliative"], "priority": "high", "doc_location": "Paper 1 > Models > HBPaIC subsection > 'Dissimilar from hospice services'"},
+    {"id": "ekt2_08", "paper": "HBMC", "paper_num": 1, "section": "Economic and Clinical Impact", "comment_id": 8, "reviewer": REVIEWER, "feedback": "Add citations for LTSS economic claims (disability likelihood, cost estimates)", "action_type": "quick_fix", "estimated_minutes": 15, "status": "pending", "tags": ["citations"], "priority": "high", "doc_location": "Paper 1 > Economic Impact > LTSS paragraph > 'Most individuals end up paying for LTSS out-of-pocket'"},
+    {"id": "ekt2_09", "paper": "HBMC", "paper_num": 1, "section": "Economic and Clinical Impact", "comment_id": 9, "reviewer": REVIEWER, "feedback": "Clarify: if most pay out-of-pocket, explain mechanism for costs passing to public programs (e.g., Medicaid spend-down). Add citations.", "action_type": "substantive", "estimated_minutes": 25, "status": "pending", "tags": ["citations", "logic", "Medicaid"], "priority": "high", "doc_location": "Paper 1 > Economic Impact > 'a significant portion of these costs may be passed onto public programs'"},
+    {"id": "ekt2_10", "paper": "HBMC", "paper_num": 1, "section": "Disadvantages of HBMC", "comment_id": 10, "reviewer": REVIEWER, "feedback": "Fix unclear phrasing: 'to care for' — reword", "action_type": "quick_fix", "estimated_minutes": 5, "status": "pending", "tags": ["phrasing"], "priority": "low", "doc_location": "Paper 1 > Disadvantages > Clinical > 'hesitant to send them to be cared for by HaH programs'"},
+    {"id": "ekt2_11", "paper": "HBMC", "paper_num": 1, "section": "Advantages of HBMC", "comment_id": 11, "reviewer": REVIEWER, "feedback": "Need stronger evidence of actual health outcome improvements (not just process changes like discontinuing medication)", "action_type": "substantive", "estimated_minutes": 30, "status": "pending", "tags": ["evidence", "outcomes"], "priority": "high", "doc_location": "Paper 1 > Advantages > 'Improves health outcomes' subsection > NC HBPC example"},
+    {"id": "ekt2_12", "paper": "HBMC", "paper_num": 1, "section": "Advantages of HBMC", "comment_id": 12, "reviewer": REVIEWER, "feedback": "Add plain-language explanation of what ICER means (US $117,300 per QALY)", "action_type": "clarification", "estimated_minutes": 10, "status": "pending", "tags": ["translation", "ICER"], "priority": "medium", "doc_location": "Paper 1 > Advantages > Cost Efficiency > 'ICER of US $117,300 per QALY'"},
+    {"id": "ekt2_13", "paper": "HBMC", "paper_num": 1, "section": "Disadvantages of HBMC", "comment_id": 13, "reviewer": REVIEWER, "feedback": "Fix formatting: stray bullet point in supply chain section", "action_type": "quick_fix", "estimated_minutes": 5, "status": "pending", "tags": ["formatting"], "priority": "low", "doc_location": "Paper 1 > Disadvantages > Supply chain > indented block quote about distance"},
+    {"id": "ekt2_14", "paper": "General", "paper_num": 0, "section": "Introduction to HBMC", "comment_id": 14, "reviewer": REVIEWER, "feedback": "Remove underlining throughout all four papers", "action_type": "quick_fix", "estimated_minutes": 15, "status": "pending", "tags": ["formatting", "underlining", "cross-paper"], "priority": "low", "doc_location": "All papers — 'References' and 'Appendix' headers"},
+
+    # ── PAPER 2: CLIMATE & AGING ───────────────────────────
+    {"id": "ekt2_16", "paper": "Climate", "paper_num": 2, "section": "Climate Introduction", "comment_id": 16, "reviewer": REVIEWER, "feedback": "Add source/citation (missing reference)", "action_type": "quick_fix", "estimated_minutes": 10, "status": "pending", "tags": ["citations"], "priority": "medium", "doc_location": "Paper 2 > Intro > near 'threat multiplier'"},
+    {"id": "ekt2_17", "paper": "Climate", "paper_num": 2, "section": "Successful Aging", "comment_id": 17, "reviewer": REVIEWER, "feedback": "Was SA updated after criticism? If not, explain how it remains relevant for YOUR work despite limitations", "action_type": "substantive", "estimated_minutes": 25, "status": "pending", "tags": ["theory", "SA", "justification"], "priority": "high", "doc_location": "Paper 2 > Successful Aging > after 'ageist, overly individualistic' criticisms"},
+    {"id": "ekt2_18", "paper": "Climate", "paper_num": 2, "section": "Resilience Theory", "comment_id": 18, "reviewer": REVIEWER, "feedback": "Define 'positive aging' — term used but not explained", "action_type": "clarification", "estimated_minutes": 15, "status": "pending", "tags": ["definition", "positive aging"], "priority": "medium", "doc_location": "Paper 2 > Resilience Theory > 'positive aging is not solely dependent on the individual'"},
+    {"id": "ekt2_19", "paper": "Climate", "paper_num": 2, "section": "Resilience Theory", "comment_id": 19, "reviewer": REVIEWER, "feedback": "TWO issues: (1) Add citation for older adults' better emotional outcomes post-disaster. (2) Balance discussion across all three resilience levels — only individual is elaborated.", "action_type": "substantive", "estimated_minutes": 30, "status": "pending", "tags": ["citations", "balance", "resilience"], "priority": "high", "doc_location": "Paper 2 > Resilience Theory > 'older adults tend to have better emotional outcomes' + Table 1"},
+    {"id": "ekt2_20", "paper": "Climate", "paper_num": 2, "section": "Physiological Vulnerabilities", "comment_id": 20, "reviewer": REVIEWER, "feedback": "Connect 'systems failure' discussion back to resilience theory framework", "action_type": "clarification", "estimated_minutes": 15, "status": "pending", "tags": ["connection", "theory"], "priority": "medium", "doc_location": "Paper 2 > Section III opening > add bridge sentence"},
+    {"id": "ekt2_21", "paper": "Climate", "paper_num": 2, "section": "Systems Theory and the Socio-ecological Model", "comment_id": 21, "reviewer": REVIEWER, "feedback": "✅ 'Well explained' — POSITIVE", "action_type": "none", "estimated_minutes": 0, "status": "done", "tags": ["positive"], "priority": "none", "doc_location": "Paper 2 > Systems Theory section"},
+    {"id": "ekt2_22", "paper": "Climate", "paper_num": 2, "section": "Socioeconomic and Environmental Factors", "comment_id": 22, "reviewer": REVIEWER, "feedback": "Clarify 'First, the environmental...' — unclear transition", "action_type": "clarification", "estimated_minutes": 10, "status": "pending", "tags": ["clarity", "transition"], "priority": "medium", "doc_location": "Paper 2 > Section IV > first paragraph (highlighted text)"},
+    {"id": "ekt2_23", "paper": "Climate", "paper_num": 2, "section": "Mental Health Impacts", "comment_id": 23, "reviewer": REVIEWER, "feedback": "By 'SDoH' do you mean existing systemic inequities? Be specific about which determinants.", "action_type": "clarification", "estimated_minutes": 10, "status": "pending", "tags": ["SDoH", "precision"], "priority": "medium", "doc_location": "Paper 2 > Mental Health > 'The SDoH may exacerbate the risk'"},
+    {"id": "ekt2_24", "paper": "Climate", "paper_num": 2, "section": "Socioeconomic and Environmental Factors", "comment_id": 24, "reviewer": REVIEWER, "feedback": "Define 'adaptive capacity' and 'absorptive resilience' when first used — meanings, measurement, overlap", "action_type": "substantive", "estimated_minutes": 30, "status": "pending", "tags": ["definitions", "resilience"], "priority": "high", "doc_location": "Paper 2 > Section IV > 'diminish the adaptive capacity of older adults'"},
+    {"id": "ekt2_25", "paper": "Climate", "paper_num": 2, "section": "Socioeconomic and Environmental Factors", "comment_id": 25, "reviewer": REVIEWER, "feedback": "Define 'transformative' resilience too. Explain how absorptive/adaptive/transformative help understand older adults' responses.", "action_type": "substantive", "estimated_minutes": 25, "status": "pending", "tags": ["definitions", "resilience"], "priority": "high", "doc_location": "Paper 2 > Table 2 > 'Resilience Capacity' column"},
+    {"id": "ekt2_26", "paper": "Climate", "paper_num": 2, "section": "Existing Strategies and Identified Gaps", "comment_id": 26, "reviewer": REVIEWER, "feedback": "Missing content or note-to-self left in doc — review and complete", "action_type": "clarification", "estimated_minutes": 15, "status": "pending", "tags": ["missing", "incomplete"], "priority": "medium", "doc_location": "Paper 2 > Section V end > 'what strategies exist to assist homebound older adults' (looks like a note, not prose)"},
+    {"id": "ekt2_27", "paper": "Climate", "paper_num": 2, "section": "Climate Conclusion", "comment_id": 27, "reviewer": REVIEWER, "feedback": "DEFENSE PREP: Discuss what 'bridging sectors' concretely looks like. Find/propose cross-sector examples.", "action_type": "substantive", "estimated_minutes": 30, "status": "pending", "tags": ["defense_prep", "cross-sector"], "priority": "medium", "doc_location": "Paper 2 > Conclusion > 'siloed industries working together'"},
+    {"id": "ekt2_28", "paper": "Climate", "paper_num": 2, "section": "Climate Appendix", "comment_id": 28, "reviewer": REVIEWER, "feedback": "Did you adapt/create Table 1? State explicitly: 'Drawing on Windle et al., I organize resilience into three categories...'", "action_type": "clarification", "estimated_minutes": 10, "status": "pending", "tags": ["attribution"], "priority": "medium", "doc_location": "Paper 2 > Appendix > Table 1 (Resilience Theory in Older Adulthood)"},
+    {"id": "ekt2_29", "paper": "Climate", "paper_num": 2, "section": "Climate Appendix", "comment_id": 29, "reviewer": REVIEWER, "feedback": "Same: clarify if you created/adapted Table 2 and describe synthesis process", "action_type": "clarification", "estimated_minutes": 10, "status": "pending", "tags": ["attribution"], "priority": "medium", "doc_location": "Paper 2 > Appendix > Table 2 (System Levels + Resilience)"},
+    {"id": "ekt2_30", "paper": "Climate", "paper_num": 2, "section": "Climate Appendix", "comment_id": 30, "reviewer": REVIEWER, "feedback": "Fix: Climate Stressors × Geriatric Syndromes labeled 'Table 2' → should be Table 3", "action_type": "quick_fix", "estimated_minutes": 5, "status": "pending", "tags": ["numbering"], "priority": "low", "doc_location": "Paper 2 > Appendix > second 'Table 2'"},
+    {"id": "ekt2_31", "paper": "Climate", "paper_num": 2, "section": "Climate Appendix", "comment_id": 31, "reviewer": REVIEWER, "feedback": "Fix: U.S. Disasters table labeled 'Table 3' → should be Table 4", "action_type": "quick_fix", "estimated_minutes": 5, "status": "pending", "tags": ["numbering"], "priority": "low", "doc_location": "Paper 2 > Appendix > 'Table 3. Examples of Major U.S...'"},
+
+    # ── PAPER 3: DELPHI ────────────────────────────────────
+    {"id": "ekt2_33", "paper": "Delphi", "paper_num": 3, "section": "Overview of the Delphi Method", "comment_id": 33, "reviewer": REVIEWER, "feedback": "Remove duplicate: Section III repeats four core features from Section II verbatim", "action_type": "quick_fix", "estimated_minutes": 10, "status": "pending", "tags": ["redundancy"], "priority": "medium", "doc_location": "Paper 3 > Section III > 'four core features which distinguish it' — same text as Section II"},
+    {"id": "ekt2_34", "paper": "Delphi", "paper_num": 3, "section": "Overview of the Delphi Method", "comment_id": 34, "reviewer": REVIEWER, "feedback": "IMPORTANT: Expand and move earlier the discussion of how 'expertise' ranges in definition — critical since your HBMC Delphi includes lived-experience experts", "action_type": "major", "estimated_minutes": 45, "status": "pending", "tags": ["expertise", "restructure"], "priority": "high", "doc_location": "Paper 3 > Section III > 'there is no consistent definition of expertise' — expand significantly"},
+    {"id": "ekt2_35", "paper": "Delphi", "paper_num": 3, "section": "Variations of the Delphi Method", "comment_id": 35, "reviewer": REVIEWER, "feedback": "Do different variations treat expertise differently? Does Decision Delphi include lived-experience experts?", "action_type": "substantive", "estimated_minutes": 25, "status": "pending", "tags": ["expertise", "variations"], "priority": "medium", "doc_location": "Paper 3 > Section IV > Table 1 — consider adding 'Expert type' column"},
+    {"id": "ekt2_36", "paper": "Delphi", "paper_num": 3, "section": "Delphi Applications", "comment_id": 36, "reviewer": REVIEWER, "feedback": "Are Delphi-derived tools actually used by practitioners? Comment on uptake. Is a 51-item tool (HEPI) practical?", "action_type": "substantive", "estimated_minutes": 25, "status": "pending", "tags": ["implementation", "practicality"], "priority": "medium", "doc_location": "Paper 3 > Section VII > HEPI paragraph > '51-item tool'"},
+    {"id": "ekt2_37", "paper": "Delphi", "paper_num": 3, "section": "Delphi Synthesis", "comment_id": 37, "reviewer": REVIEWER, "feedback": "✅ 'Yes agree' — POSITIVE", "action_type": "none", "estimated_minutes": 0, "status": "done", "tags": ["positive"], "priority": "none", "doc_location": "Paper 3 > Section VIII"},
+
+    # ── PAPER 4: SCPA ──────────────────────────────────────
+    {"id": "ekt2_39", "paper": "SCPA", "paper_num": 4, "section": "SCPA Introduction", "comment_id": 39, "reviewer": REVIEWER, "feedback": "Grammar: 'but responsibility' — missing word, likely 'but responsibility for administration...'", "action_type": "quick_fix", "estimated_minutes": 5, "status": "pending", "tags": ["grammar"], "priority": "low", "doc_location": "Paper 4 > Intro > 'CMS provide baseline rules and requirements, responsibility for...'"},
+    {"id": "ekt2_40", "paper": "SCPA", "paper_num": 4, "section": "SCPA Introduction", "comment_id": 40, "reviewer": REVIEWER, "feedback": "Define 'conjunctural causation' and 'equifinality' here (or add signpost to Section 3.3)", "action_type": "clarification", "estimated_minutes": 15, "status": "pending", "tags": ["definitions", "forward reference"], "priority": "medium", "doc_location": "Paper 4 > Intro > last paragraph > 'conjunctural causation and equifinality'"},
+    {"id": "ekt2_41", "paper": "SCPA", "paper_num": 4, "section": "Origins of CPA", "comment_id": 41, "reviewer": REVIEWER, "feedback": "Add concrete example of behavioralism treating policy variations as anomalies", "action_type": "substantive", "estimated_minutes": 20, "status": "pending", "tags": ["example"], "priority": "medium", "doc_location": "Paper 4 > Section 2 > 'policy variations are treated as anomalies'"},
+    {"id": "ekt2_42", "paper": "SCPA", "paper_num": 4, "section": "4.2 Scaling Down and Relevant Units of Analysis", "comment_id": 42, "reviewer": REVIEWER, "feedback": "How does CPA handle choosing comparators after scaling down? Can't include all 50 states — discuss case selection.", "action_type": "substantive", "estimated_minutes": 25, "status": "pending", "tags": ["case selection", "methodology"], "priority": "high", "doc_location": "Paper 4 > Section 3.1 > after scaling down discussion"},
+    {"id": "ekt2_43", "paper": "SCPA", "paper_num": 4, "section": "4.2 Scaling Down and Relevant Units of Analysis", "comment_id": 43, "reviewer": REVIEWER, "feedback": "Connect to broader qualitative practice of purposive sampling — related or distinct?", "action_type": "clarification", "estimated_minutes": 15, "status": "pending", "tags": ["purposive sampling"], "priority": "medium", "doc_location": "Paper 4 > Section 3.1 > near case selection discussion"},
+    {"id": "ekt2_44", "paper": "SCPA", "paper_num": 4, "section": "SCPA as Research Design", "comment_id": 44, "reviewer": REVIEWER, "feedback": "Define Galton's problem BEFORE first mention — appears without context", "action_type": "clarification", "estimated_minutes": 10, "status": "pending", "tags": ["ordering", "definition"], "priority": "medium", "doc_location": "Paper 4 > Section 3.2 > 'mitigates Galton's problem' — add definition before this"},
+    {"id": "ekt2_45", "paper": "SCPA", "paper_num": 4, "section": "4.4 Causal Complexity in HBMC Emergency Preparedness", "comment_id": 45, "reviewer": REVIEWER, "feedback": "Add transition before QCA — 'To operationalize this configurational logic, researchers developed QCA...'", "action_type": "clarification", "estimated_minutes": 10, "status": "pending", "tags": ["transition", "QCA"], "priority": "medium", "doc_location": "Paper 4 > Section 3.3 > before QCA discussion"},
+    {"id": "ekt2_46", "paper": "SCPA", "paper_num": 4, "section": "4.4 Causal Complexity in HBMC Emergency Preparedness", "comment_id": 46, "reviewer": REVIEWER, "feedback": "Connect bounded scope to qualitative concept of 'transferability' — relevant to CPA?", "action_type": "substantive", "estimated_minutes": 20, "status": "pending", "tags": ["transferability", "theory"], "priority": "medium", "doc_location": "Paper 4 > Section 3.3 > after 'do not apply beyond their bounded scope'"},
+    {"id": "ekt2_47", "paper": "SCPA", "paper_num": 4, "section": "Implications of SCPA for HBMC", "comment_id": 47, "reviewer": REVIEWER, "feedback": "HOW does someone do configurational analysis in practice? Discuss sampling, data collection, analysis approaches.", "action_type": "substantive", "estimated_minutes": 30, "status": "pending", "tags": ["methodology", "practical"], "priority": "high", "doc_location": "Paper 4 > Section 4 > after Figure 3"},
+    {"id": "ekt2_48", "paper": "SCPA", "paper_num": 4, "section": "Implications of SCPA for HBMC", "comment_id": 48, "reviewer": REVIEWER, "feedback": "States aren't internally coherent (urban vs rural). How does SCPA handle within-state variation?", "action_type": "substantive", "estimated_minutes": 25, "status": "pending", "tags": ["within-state", "methodology"], "priority": "high", "doc_location": "Paper 4 > Section 4.2 > 'urban areas may have more robust preparedness'"},
+    {"id": "ekt2_49", "paper": "SCPA", "paper_num": 4, "section": "4.3 Variation Under a Shared Federal Framework", "comment_id": 49, "reviewer": REVIEWER, "feedback": "Variation isn't only from governance — also disaster types, policy choices, resources, history, political culture", "action_type": "substantive", "estimated_minutes": 20, "status": "pending", "tags": ["context", "additional factors"], "priority": "medium", "doc_location": "Paper 4 > Conclusion > 'reflective of the decentralized governance structure'"},
+
+    # ── INLINE MARKED TEXT ─────────────────────────────────
+    {"id": "ekt2_mark_01", "paper": "HBMC", "paper_num": 1, "section": "Models of Home-Based Medical Care", "comment_id": None, "reviewer": REVIEWER, "feedback": "Fix: 'on the other, on the other' — remove duplicate phrase", "action_type": "quick_fix", "estimated_minutes": 2, "status": "pending", "tags": ["typo"], "priority": "low", "doc_location": "Paper 1 > Models > 'on the other, on the other are long-term supports'"},
+    {"id": "ekt2_mark_02", "paper": "Climate", "paper_num": 2, "section": "Socioeconomic and Environmental Factors", "comment_id": None, "reviewer": REVIEWER, "feedback": "Fix: 'First, the environmental' — unclear sentence start", "action_type": "quick_fix", "estimated_minutes": 5, "status": "pending", "tags": ["phrasing"], "priority": "low", "doc_location": "Paper 2 > Section IV > first paragraph (highlighted)"},
+]
+
+
+def insert_to_mongodb(db_uri: str, db_name: str = "phd_app"):
+    from pymongo import MongoClient
+    client = MongoClient(db_uri)
+    db = client[db_name]
+    coll = db["comps_feedback"]
+    for item in EKT_FEEDBACK:
+        doc = {**item, "source_file": SOURCE_FILE, "feedback_round": FEEDBACK_ROUND, "created_at": datetime.utcnow(), "completed_at": None, "notes": ""}
+        coll.update_one({"id": doc["id"]}, {"$set": doc}, upsert=True)
+    print(f"✅ Inserted/updated {len(EKT_FEEDBACK)} items into '{db_name}.comps_feedback'")
+    client.close()
 # ─────────────────────────────────────────────
-# 10. SIDEBAR
+# 10. NEW SECTIONS TO ADD TO SECTION_TASKS + COMPS_SECTIONS
+# ─────────────────────────────────────────────
+
+def print_summary():
+    total = len(EKT_FEEDBACK)
+    pending = [f for f in EKT_FEEDBACK if f["status"] == "pending"]
+    EXISTING = {"Introduction to HBMC", "Historical Context", "Who Needs HBMC and Why", "Models of Home-Based Medical Care", "Economic and Clinical Impact", "Advantages of HBMC", "Disadvantages of HBMC", "Successful Aging", "Systems Theory and the Socio-ecological Model", "Physiological Vulnerabilities", "Mental Health Impacts", "Home Loss, Displacement, and Institutionalization", "Preparedness Frameworks", "4.2 Scaling Down and Relevant Units of Analysis", "4.3 Variation Under a Shared Federal Framework", "4.4 Causal Complexity in HBMC Emergency Preparedness", "Conclusion (SCPA)"}
+
+    print("=" * 60)
+    print("🦇 EKT FEEDBACK ROUND 2 — SECTION MAPPING")
+    print("=" * 60)
+    print(f"Total: {total} | Pending: {len(pending)} | Done: {total - len(pending)}\n")
+
+    existing_items = [f for f in pending if f["section"] in EXISTING]
+    new_items = [f for f in pending if f["section"] not in EXISTING]
+    print(f"  ✅ {len(existing_items)} items map to EXISTING app sections (work immediately)")
+    print(f"  🆕 {len(new_items)} items need NEW sections added to app first\n")
+
+    from collections import Counter
+    for sec, count in Counter(f["section"] for f in pending).most_common():
+        marker = "✅" if sec in EXISTING else "🆕"
+        mins = sum(f["estimated_minutes"] for f in pending if f["section"] == sec)
+        print(f"    {marker} {sec}: {count} items (~{mins}min)")
+
+    total_mins = sum(f["estimated_minutes"] for f in pending)
+    print(f"\n  TOTAL: ~{total_mins}min ({total_mins // 60}h {total_mins % 60}m)")
+
+
+if __name__ == "__main__":
+    print_summary()
+
+# ─────────────────────────────────────────────
+# 11. SIDEBAR
 # ─────────────────────────────────────────────
 with st.sidebar:
     st.header("🦇 Bat-Computer")
