@@ -1383,6 +1383,28 @@ drawClock();
         st.caption("Select a section in Focus Mode to log time.")
 
     st.divider()
+
+    # ── Focus Beats ──
+    st.subheader("🎵 Focus Beats")
+    BEATS = {
+        "🌙 Gotham Night (Lo-Fi)":   "https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=0",
+        "🌧️ Rain on Gotham":         "https://www.youtube.com/embed/mPZkdNFkNps?autoplay=0",
+        "🔥 Dark Ambient":           "https://www.youtube.com/embed/S_MOd40zlYU?autoplay=0",
+        "📚 Study Jazz":             "https://www.youtube.com/embed/HuFYqnbVbzY?autoplay=0",
+        "🌊 White Noise":            "https://www.youtube.com/embed/nMfPqeZjc2c?autoplay=0",
+        "🦇 Cinematic Batman Vibes": "https://www.youtube.com/embed/RR3MxBOGCGE?autoplay=0",
+    }
+    selected_beat = st.selectbox("Choose your vibe:", list(BEATS.keys()), key="focus_beats_select")
+    beat_url = BEATS[selected_beat]
+    components.html(
+        f'<iframe width="100%" height="80" src="{beat_url}" '
+        f'frameborder="0" allow="autoplay; encrypted-media" allowfullscreen '
+        f'style="border-radius:8px;border:1px solid #f1c40f33;"></iframe>',
+        height=90
+    )
+    st.caption("▶️ Click play inside the player to start.")
+
+    st.divider()
     st.subheader("🦇 Dissertation Coach")
 
     # ── Build full ordered section list ──
