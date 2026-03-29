@@ -1561,6 +1561,45 @@ Be direct, specific, doctoral-level. Keep responses concise — this is a sideba
 # ─────────────────────────────────────────────
 # 11. TABS
 # ─────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# WELCOME BANNER — Progress & Encouragement
+# ─────────────────────────────────────────────
+_rank_icon, _rank_title, _rank_color = get_rank(st.session_state.xp)
+_last_section = st.session_state.get("last_worked_section", "")
+_last_date = st.session_state.get("last_worked_date", "")
+_section_timers = st.session_state.get("section_timers", {})
+_total_section_mins = sum(_section_timers.values())
+_task_timers = st.session_state.get("task_timers", {})
+_total_task_mins = sum(_task_timers.values())
+_all_mins = _total_section_mins + _total_task_mins
+_rank_icon_display = get_rank(st.session_state.xp)[0]
+
+# Build encouraging message
+_msg_lines = [f"## 🦇 Welcome back, {_rank_icon_display} {_rank_title}"]
+_msg_lines.append(f"**{st.session_state.xp} XP earned** • **{_all_mins // 60}h {_all_mins % 60}m** focused")
+
+if _last_section and _last_date:
+    _msg_lines.append(f"⏪ **Last worked:** {_last_section} on {_last_date}")
+
+# Progress towards next rank
+_next_xp, _next_title = get_next_rank(st.session_state.xp)
+if _next_xp:
+    _needed = _next_xp - st.session_state.xp
+    _msg_lines.append(f"🔺 **{_needed} XP until {_next_title}** — You're on the right path.")
+else:
+    _msg_lines.append(f"👑 **LEGEND STATUS ACHIEVED** — Gotham's finest.")
+
+# Sections overview
+if _section_timers:
+    _top_sections = sorted(_section_timers.items(), key=lambda x: x[1], reverse=True)[:3]
+    _section_str = " • ".join([f"{s}: {m}m" for s, m in _top_sections])
+    _msg_lines.append(f"⏱️ **Most focused:** {_section_str}")
+
+_msg_lines.append("*Gotham needs you. Dive in.* 🌙")
+
+st.markdown("\n\n".join(_msg_lines))
+st.divider()
+
 t1, t2, t3, t4, t5, t6, t7 = st.tabs([
     "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review", "🧠 Mind Map", "🎯 Focus"
 ])
