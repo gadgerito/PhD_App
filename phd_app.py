@@ -37,13 +37,7 @@ if not check_password():
 # -- MongoDB --
 @st.cache_resource
 def get_mongo_db():
-    client = MongoClient(
-        st.secrets["mongo"]["uri"],
-        username=st.secrets["mongo"]["username"],
-        password=st.secrets["mongo"]["password"],
-        tls=True,
-        tlsAllowInvalidCertificates=True
-    )
+    client = MongoClient(st.secrets["MONGODB_URI"])
     return client["phd_app"]
 
 def get_db():
@@ -1112,7 +1106,7 @@ with st.sidebar:
                     with st.spinner("Finding alternatives..."):
                         try:
                             import anthropic
-                            client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+                            client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
                             message = client.messages.create(
                                 model="claude-sonnet-4-20250514",
                                 max_tokens=200,
@@ -1208,7 +1202,7 @@ Return ONLY a numbered list, no explanation:
             with st.spinner("🦇 Thinking..."):
                 try:
                     import anthropic
-                    client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+                    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
                     if coach_mode == "🏥 Public Health":
                         system_prompt = """You are an expert dissertation writing coach specializing in public health,
@@ -1636,7 +1630,7 @@ with t4:
             with st.spinner("Batman is reviewing your argument..."):
                 try:
                     import anthropic
-                    client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+                    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
                     message = client.messages.create(
                         model="claude-sonnet-4-20250514",
                         max_tokens=1024,
@@ -1729,7 +1723,7 @@ Be direct, encouraging, and doctoral-level specific."""
         if st.button("🦇 Deep AI Analysis", use_container_width=True):
             with st.spinner("The Dark Knight is analyzing your writing..."):
                 try:
-                    client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+                    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
                     message = client.messages.create(
                         model="claude-opus-4-5",
@@ -1956,7 +1950,7 @@ Format your response with clear headers for each section."""
         with st.spinner("Searching the Bat-Database..."):
             try:
                 import anthropic
-                client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+                client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
                 message = client.messages.create(
                     model="claude-opus-4-5",
                     max_tokens=1024,
@@ -2357,7 +2351,7 @@ with t5:
         with st.spinner("Analyzing your comps..."):
             try:
                 import anthropic
-                client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+                client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
                 prompt = f"""You are an expert dissertation committee member specializing in public health, aging, health policy, geriatrics, and disaster preparedness.
 
@@ -2612,7 +2606,7 @@ with t6:
                 with st.spinner("Batman is connecting the dots..."):
                     try:
                         import anthropic
-                        client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+                        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
                         entries_text = "\n".join([
                             f"[{e['paper']} | {e.get('theme', 'general')}]: {e['thought']}"
