@@ -1152,14 +1152,14 @@ Return ONLY a numbered list, no explanation:
             st.code(TEMPLATES[selected_template])
             st.caption("Select all and copy from the box above!")
     st.divider()
-    st.subheader("🦇 Writing Coach")
+    st.subheader("🦇 Dissertation Coach")
 
-    coach_mode = st.radio(
-        "Mode:",
-        ["🏥 Public Health", "📚 General Academic"],
-        horizontal=True,
-        key="coach_mode"
-    )
+    # Pick up focus section if set, else general mode
+    _focus_sec = st.session_state.get("focus_section_select", "")
+    if _focus_sec:
+        st.caption(f"📍 Focus: {_focus_sec}")
+    else:
+        st.caption("General mode — go to 🎯 Focus to load section feedback")
 
     if 'coach_messages' not in st.session_state:
         st.session_state.coach_messages = []
@@ -1182,7 +1182,7 @@ Return ONLY a numbered list, no explanation:
 
     coach_input = st.text_area(
         "Ask your coach:",
-        placeholder="Paste a paragraph, ask for brainstorming help, or ask a writing question...",
+        placeholder="Ask about your current section, paste a paragraph, or ask a writing question...",
         key="coach_input",
         height=100
     )
@@ -1191,54 +1191,47 @@ Return ONLY a numbered list, no explanation:
 
     if coach_col1.button("💬 Send", use_container_width=True, key="coach_send"):
         if coach_input:
-            st.session_state.coach_messages.append({
-                "role": "user",
-                "content": coach_input
-            })
+            st.session_state.coach_messages.append({"role": "user", "content": coach_input})
             with st.spinner("🦇 Thinking..."):
                 try:
                     import anthropic
                     client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-                    if coach_mode == "🏥 Public Health":
-                        system_prompt = """You are an expert dissertation writing coach specializing in public health,
-aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate
-working on papers about home-based care (HCBS/HaH), climate disasters and older adults,
-and Delphi policy studies.
+                    # Build context from current focus section
+                    _focus_sec = st.session_state.get("focus_section_select", "")
+                    if _focus_sec:
+                        _fb_items = (
+                            [{"reviewer":"Emily","feedback":c["comment"]} for tid,c in lab_context.items() if _focus_sec in task_to_sections.get(tid,[])]
+                        )
+                        try:
+                            _fb_items += list(get_mongo_db()["comps_feedback"].find({"section": _focus_sec}, {"_id":0}))
+                        except:
+                            pass
+                        _fb_ctx = "\n".join(f"- [{i.get('reviewer','?')}] {i.get('feedback','')}" for i in _fb_items)
+                        _draft = st.session_state.saved_responses.get(f"focus_draft_{_focus_sec}", "")
+                        system_prompt = f"""You are an expert dissertation writing coach specializing in public health, aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate working on comprehensive exams.
 
-You help with: brainstorming arguments, reviewing paragraphs, strengthening claims,
-fixing structure, improving academic voice, and giving dissertation-specific feedback.
+Current focus section: **{_focus_sec}**
 
-Be direct, specific, and doctoral-level. Use Batman metaphors occasionally for fun.
-Keep responses concise — this is a sidebar chat, not an essay."""
+Committee feedback for this section:
+{_fb_ctx if _fb_ctx else "None loaded."}
+
+{"Student's current draft:\n" + _draft if _draft else "No draft yet."}
+
+Be direct, specific, and doctoral-level. Keep responses concise — this is a sidebar chat. Use Batman metaphors occasionally."""
                     else:
-                        system_prompt = """You are an expert academic writing coach for doctoral students.
-You help with: brainstorming arguments, reviewing paragraphs, strengthening claims,
-fixing structure, improving academic voice, and general dissertation feedback.
+                        system_prompt = """You are an expert dissertation writing coach specializing in public health, aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate working on comprehensive exams covering home-based medical care, climate disasters and older adults, Delphi methodology, and subnational comparative policy analysis.
 
-Be direct, specific, and doctoral-level. Keep responses concise — this is a sidebar chat."""
-
-                    messages = []
-                    for m in st.session_state.coach_messages[-10:]:
-                        messages.append({
-                            "role": m["role"],
-                            "content": m["content"]
-                        })
+Be direct, specific, and doctoral-level. Keep responses concise — this is a sidebar chat. Use Batman metaphors occasionally."""
 
                     response = client.messages.create(
                         model="claude-sonnet-4-20250514",
                         max_tokens=500,
                         system=system_prompt,
-                        messages=messages
+                        messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.coach_messages[-10:]]
                     )
-
-                    reply = response.content[0].text
-                    st.session_state.coach_messages.append({
-                        "role": "assistant",
-                        "content": reply
-                    })
+                    st.session_state.coach_messages.append({"role": "assistant", "content": response.content[0].text})
                     st.rerun()
-
                 except Exception as e:
                     st.error(f"Coach failed: {e}")
         else:
@@ -3265,101 +3258,8 @@ drawClock();
 
         st.divider()
 
-        # ── Dissertation Coach ──
-        focus_draft_key = f"focus_draft_{focus_section}"
-        st.subheader("🦇 Dissertation Coach")
-        st.caption("Your coach knows this section's feedback and your draft. Just ask.")
-
-        focus_coach_key = f"focus_coach_{focus_section}"
-        if focus_coach_key not in st.session_state:
-            st.session_state[focus_coach_key] = []
-
-        feedback_context = "\n".join(
-            f"- [{item.get('reviewer','?')}] {item.get('feedback', item.get('comment',''))}"
-            for item in focus_items
-        )
-        current_draft = st.session_state.saved_responses.get(focus_draft_key, "")
-
-        focus_system_prompt = f"""You are an expert dissertation writing coach specializing in public health, aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate working on comprehensive exams covering home-based medical care, climate disasters and older adults, Delphi methodology, and subnational comparative policy analysis.
-
-You are in FOCUS MODE for the section: **{focus_section}**
-
-Committee feedback to address:
-{feedback_context}
-
-{"Student's current draft:\n" + current_draft if current_draft else "No draft written yet."}
-
-Be direct, specific, and doctoral-level. Help them write strong responses to this feedback. Reference specific feedback items. Use Batman metaphors occasionally."""
-
-        # Chat history
-        for msg in st.session_state[focus_coach_key][-8:]:
-            if msg["role"] == "user":
-                st.markdown(
-                    f'<div style="background:#1a1a2e;border-left:3px solid #f1c40f;'
-                    f'border-radius:8px;padding:10px 14px;margin:6px 0;color:#f0e6c8;">'
-                    f'<b style="color:#f1c40f;">You:</b><br>{msg["content"]}</div>',
-                    unsafe_allow_html=True
-                )
-            else:
-                st.markdown(
-                    f'<div style="background:#0d2b0d;border-left:3px solid #2ecc71;'
-                    f'border-radius:8px;padding:10px 14px;margin:6px 0;color:#d5f5e3;">'
-                    f'<b style="color:#2ecc71;">🦇 Coach:</b><br>{msg["content"]}</div>',
-                    unsafe_allow_html=True
-                )
-
-        focus_input = st.text_area(
-            "Ask your coach:",
-            placeholder="e.g. 'Help me draft a response to the resilience definitions feedback' or 'What's the strongest argument I can make here?'",
-            key=f"focus_coach_input_{focus_section}",
-            height=100
-        )
-
-        fc1, fc2, fc3 = st.columns([2, 1, 1])
-        if fc1.button("💬 Send to Coach", key=f"focus_coach_send_{focus_section}", use_container_width=True):
-            if focus_input:
-                st.session_state[focus_coach_key].append({"role": "user", "content": focus_input})
-                with st.spinner("🦇 Coach is thinking..."):
-                    try:
-                        import anthropic
-                        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-                        response = client.messages.create(
-                            model="claude-sonnet-4-20250514",
-                            max_tokens=800,
-                            system=focus_system_prompt,
-                            messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state[focus_coach_key][-12:]]
-                        )
-                        st.session_state[focus_coach_key].append({"role": "assistant", "content": response.content[0].text})
-                        st.session_state.xp += 5
-                        save_all_progress()
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Coach error: {e}")
-            else:
-                st.warning("Ask something first!")
-
-        if fc2.button("🔄 New Session", key=f"focus_coach_clear_{focus_section}", use_container_width=True):
-            st.session_state[focus_coach_key] = []
-            st.rerun()
-
-        if fc3.button("📋 Summarize", key=f"focus_coach_summary_{focus_section}", use_container_width=True):
-            with st.spinner("Summarizing..."):
-                try:
-                    import anthropic
-                    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
-                    history = "\n".join(f"{m['role'].upper()}: {m['content']}" for m in st.session_state[focus_coach_key])
-                    summary_response = client.messages.create(
-                        model="claude-sonnet-4-20250514",
-                        max_tokens=300,
-                        messages=[{"role": "user", "content": f"Summarize the key action items and insights from this coaching session in 3-5 bullet points:\n\n{history}"}]
-                    )
-                    st.info(f"**Session Summary:**\n\n{summary_response.content[0].text}")
-                except Exception as e:
-                    st.error(f"Summary failed: {e}")
-
-        st.divider()
-
         # ── Draft area ──
+        focus_draft_key = f"focus_draft_{focus_section}"
         st.subheader("✍️ Your Draft Response")
         focus_saved = st.session_state.saved_responses.get(focus_draft_key, "")
         focus_draft = st.text_area(
