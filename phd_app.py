@@ -1327,11 +1327,6 @@ drawClock();
     st.subheader("🦇 Dissertation Coach")
 
     # ── Build full ordered section list ──
-    _all_wt_sections = sorted(set(
-        list(task_to_sections_inv := {s for ids in SECTION_TASKS.values() for s in []}) |
-        set(SECTION_TASKS.keys())
-    ))
-    # Use Emma's sections + SECTION_TASKS keys as the walkthrough order
     _wt_sections = list(SECTION_TASKS.keys())
     try:
         _emma_secs = list(get_mongo_db()["comps_feedback"].distinct("section"))
