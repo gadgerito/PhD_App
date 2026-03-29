@@ -3034,35 +3034,8 @@ with t7:
 
         st.divider()
 
-        # ── Draft area ──
-        st.subheader("✍️ Your Draft Response")
-        focus_draft_key = f"focus_draft_{focus_section}"
-        focus_saved = st.session_state.saved_responses.get(focus_draft_key, "")
-        focus_draft = st.text_area(
-            "",
-            value=focus_saved,
-            key=f"focus_textarea_{focus_section}",
-            height=220,
-            placeholder="Write your response to this feedback here...",
-            label_visibility="collapsed"
-        )
-        if st.button("💾 Save Draft (+10 XP)", key=f"focus_save_{focus_section}", use_container_width=True):
-            st.session_state.saved_responses[focus_draft_key] = focus_draft
-            st.session_state.last_worked_section = focus_section
-            st.session_state.last_worked_date = datetime.now().strftime("%b %d, %Y at %I:%M %p")
-            old_rank = get_rank(st.session_state.xp)
-            st.session_state.xp += 10
-            new_rank = get_rank(st.session_state.xp)
-            if new_rank[0] != old_rank[0]:
-                st.session_state.rank_up_title = new_rank[1]
-            st.session_state.celebration_xp = 10
-            save_all_progress()
-            st.success("Draft saved! ⚡")
-            st.rerun()
-
-        st.divider()
-
         # ── Dissertation Coach ──
+        focus_draft_key = f"focus_draft_{focus_section}"
         st.subheader("🦇 Dissertation Coach")
         st.caption("Your coach knows this section's feedback and your draft. Just ask.")
 
@@ -3152,6 +3125,33 @@ Be direct, specific, and doctoral-level. Help them write strong responses to thi
                     st.info(f"**Session Summary:**\n\n{summary_response.content[0].text}")
                 except Exception as e:
                     st.error(f"Summary failed: {e}")
+
+        st.divider()
+
+        # ── Draft area ──
+        st.subheader("✍️ Your Draft Response")
+        focus_saved = st.session_state.saved_responses.get(focus_draft_key, "")
+        focus_draft = st.text_area(
+            "",
+            value=focus_saved,
+            key=f"focus_textarea_{focus_section}",
+            height=220,
+            placeholder="Write your response to this feedback here...",
+            label_visibility="collapsed"
+        )
+        if st.button("💾 Save Draft (+10 XP)", key=f"focus_save_{focus_section}", use_container_width=True):
+            st.session_state.saved_responses[focus_draft_key] = focus_draft
+            st.session_state.last_worked_section = focus_section
+            st.session_state.last_worked_date = datetime.now().strftime("%b %d, %Y at %I:%M %p")
+            old_rank = get_rank(st.session_state.xp)
+            st.session_state.xp += 10
+            new_rank = get_rank(st.session_state.xp)
+            if new_rank[0] != old_rank[0]:
+                st.session_state.rank_up_title = new_rank[1]
+            st.session_state.celebration_xp = 10
+            save_all_progress()
+            st.success("Draft saved! ⚡")
+            st.rerun()
 
     # ── EXPORT & DAILY UPDATE ──────────────────────────────
     st.divider()
