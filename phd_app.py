@@ -3152,3 +3152,151 @@ Be direct, specific, and doctoral-level. Help them write strong responses to thi
                     st.info(f"**Session Summary:**\n\n{summary_response.content[0].text}")
                 except Exception as e:
                     st.error(f"Summary failed: {e}")
+
+    # ── EXPORT & DAILY UPDATE ──────────────────────────────
+    st.divider()
+    exp_col1, exp_col2 = st.columns(2)
+
+    # ── Export All Drafts ──
+    with exp_col1:
+        st.subheader("📤 Export All Drafts")
+
+        # Collect all saved focus drafts
+        all_drafts = {
+            k.replace("focus_draft_", ""): v
+            for k, v in st.session_state.saved_responses.items()
+            if k.startswith("focus_draft_") and v.strip()
+        }
+
+        if all_drafts:
+            today = datetime.now().strftime("%B %d, %Y")
+            lines = [
+                "=" * 60,
+                "🦇 THE DARK KNIGHT OF PUBLIC HEALTH",
+                "COMPREHENSIVE EXAM — FOCUS MODE DRAFT RESPONSES",
+                f"Exported: {today}",
+                "=" * 60, ""
+            ]
+
+            # Group by paper using Emma's section→paper mapping
+            paper_map = {}
+            for item in focus_emma_items:
+                paper_map[item.get("section", "")] = item.get("paper", "General")
+
+            grouped = {}
+            for section, draft in sorted(all_drafts.items()):
+                paper = paper_map.get(section, "General")
+                grouped.setdefault(paper, []).append((section, draft))
+
+            for paper, entries in sorted(grouped.items()):
+                lines += [f"\n{'─' * 50}", f"📄 {paper}", f"{'─' * 50}"]
+                for section, draft in entries:
+                    lines += [f"\n## {section}\n", draft, ""]
+
+            export_text = "\n".join(lines)
+
+            st.download_button(
+                label="⬇️ Download All Drafts (.txt)",
+                data=export_text,
+                file_name=f"comps_drafts_{datetime.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+
+            # Printable HTML version
+            html_sections = ""
+            for paper, entries in sorted(grouped.items()):
+                html_sections += f"<h2 style='color:#1a1a2e;border-bottom:2px solid #f1c40f;padding-bottom:6px'>{paper}</h2>"
+                for section, draft in entries:
+                    html_sections += f"""
+                    <div style='margin:16px 0;padding:16px;border-left:4px solid #f1c40f;background:#fafafa;border-radius:6px;'>
+                        <h3 style='margin:0 0 8px 0;color:#333'>{section}</h3>
+                        <p style='white-space:pre-wrap;margin:0;color:#444;line-height:1.7'>{draft}</p>
+                    </div>"""
+
+            printable_html = f"""<!DOCTYPE html><html><head>
+<title>Comps Draft Responses — {today}</title>
+<style>body{{font-family:Georgia,serif;max-width:800px;margin:40px auto;color:#333}}
+@media print{{button{{display:none}}}}</style></head>
+<body>
+<h1 style='color:#1a1a2e'>🦇 Comprehensive Exam Draft Responses</h1>
+<p style='color:#888'>Exported: {today}</p><hr>
+{html_sections}
+<br><button onclick='window.print()' style='padding:10px 24px;background:#1a1a2e;color:#f1c40f;border:none;border-radius:6px;cursor:pointer;font-size:1rem'>🖨️ Print</button>
+</body></html>"""
+
+            st.download_button(
+                label="🖨️ Download Printable HTML",
+                data=printable_html,
+                file_name=f"comps_drafts_{datetime.now().strftime('%Y%m%d')}.html",
+                mime="text/html",
+                use_container_width=True
+            )
+            st.caption(f"{len(all_drafts)} sections with saved drafts")
+        else:
+            st.info("No drafts saved yet — write responses in Focus Mode above.")
+
+    # ── Daily Update ──
+    with exp_col2:
+        st.subheader("📅 Daily Update")
+
+        # Track daily activity
+        if "daily_activity" not in st.session_state:
+            st.session_state.daily_activity = {}
+
+        today_key = datetime.now().strftime("%Y-%m-%d")
+        today_sections = st.session_state.daily_activity.get(today_key, [])
+
+        # Show what's been saved today
+        today_drafts = {
+            k.replace("focus_draft_", ""): v
+            for k, v in st.session_state.saved_responses.items()
+            if k.startswith("focus_draft_") and v.strip()
+        }
+
+        total_sections = len(all_focus_sections)
+        done_sections = len(today_drafts)
+
+        st.metric("Sections with Drafts", f"{done_sections} / {total_sections}")
+
+        if today_drafts:
+            st.markdown("**Sections addressed:**")
+            for sec in sorted(today_drafts.keys()):
+                st.markdown(f"✅ {sec}")
+
+        st.write("")
+        if st.button("🦇 Generate Daily Update", use_container_width=True, key="daily_update_btn"):
+            if today_drafts:
+                with st.spinner("Generating your daily update..."):
+                    try:
+                        import anthropic
+                        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+
+                        drafts_summary = "\n\n".join(
+                            f"**{sec}:**\n{draft[:300]}{'...' if len(draft) > 300 else ''}"
+                            for sec, draft in sorted(today_drafts.items())
+                        )
+
+                        update_response = client.messages.create(
+                            model="claude-sonnet-4-20250514",
+                            max_tokens=500,
+                            messages=[{"role": "user", "content": f"""You are a PhD writing coach. Based on these draft responses written today for a comprehensive exam, write a brief daily progress update (3-5 sentences) that:
+1. Notes what sections were addressed
+2. Highlights the strongest work
+3. Identifies what still needs attention
+4. Ends with one motivating sentence (Batman-themed)
+
+Today's drafts:
+{drafts_summary}"""}]
+                        )
+                        update_text = update_response.content[0].text
+                        st.session_state["latest_daily_update"] = f"{today_key}: {update_text}"
+                        st.success(update_text)
+                    except Exception as e:
+                        st.error(f"Daily update failed: {e}")
+            else:
+                st.warning("Save some drafts first!")
+
+        if st.session_state.get("latest_daily_update"):
+            with st.expander("📋 Last Update"):
+                st.write(st.session_state["latest_daily_update"])
