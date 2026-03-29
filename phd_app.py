@@ -1341,26 +1341,128 @@ with t2:
     q3, s3 = random.choice(BATMAN_QUOTES)
     st.markdown(quote_box(q3, s3), unsafe_allow_html=True)
 
-    all_ids = sorted(list(set(
-        list(lab_context.keys()) +
-        [i['id'] for cat in master_tasks.values() for i in cat]
-    )))
-    sel_id = st.selectbox("Select Task ID:", all_ids)
-    ctx    = lab_context.get(sel_id, {"comment": "Address feedback.", "prefill": ""})
-    st.warning(f"**Emily's Feedback:** {ctx['comment']}")
-    val   = st.session_state.saved_responses.get(sel_id, ctx['prefill'])
-    draft = st.text_area("Finalized Response:", value=val, key=f"lab_{sel_id}", height=200)
-    if st.button("Mark Draft Complete (+10 XP)"):
-        st.session_state.saved_responses[sel_id] = draft
-        old_rank = get_rank(st.session_state.xp)
-        st.session_state.xp += 10
-        new_rank = get_rank(st.session_state.xp)
-        if new_rank[0] != old_rank[0]:
-            st.session_state.rank_up_title = new_rank[1]
-        st.session_state.celebration_xp = 10
-        save_all_progress()
-        st.success("Draft Secured! ⚡")
-        st.rerun()
+    # ── Load Emma's feedback from MongoDB ──
+    emma_items = []
+    try:
+        emma_items = list(get_mongo_db()["comps_feedback"].find({}, {"_id": 0}))
+    except Exception as e:
+        st.warning(f"Could not load Emma's feedback: {e}")
+
+    # ── Build Emily's feedback mapped to sections ──
+    # Invert SECTION_TASKS: task_id -> [section, ...]
+    task_to_sections = {}
+    for section_title, task_ids in SECTION_TASKS.items():
+        for tid in task_ids:
+            task_to_sections.setdefault(tid, []).append(section_title)
+
+    emily_by_section = {}
+    for tid, ctx in lab_context.items():
+        sections = task_to_sections.get(tid, ["General"])
+        for sec in sections:
+            emily_by_section.setdefault(sec, []).append({
+                "reviewer": "Emily",
+                "task_id": tid,
+                "feedback": ctx["comment"],
+                "prefill": ctx.get("prefill", ""),
+                "section": sec,
+            })
+
+    # ── Emma's feedback grouped by section ──
+    emma_by_section = {}
+    for item in emma_items:
+        sec = item.get("section", "General")
+        emma_by_section.setdefault(sec, []).append(item)
+
+    # ── Filters ──
+    f_col1, f_col2 = st.columns(2)
+    paper_opts = ["All Papers", "HBMC", "Climate", "Delphi", "SCPA", "General"]
+    sel_paper = f_col1.selectbox("Filter by Paper:", paper_opts, key="lab_paper_filter")
+    sel_reviewer = f_col2.selectbox("Filter by Reviewer:", ["All", "Emily", "Emma Tsui"], key="lab_reviewer_filter")
+
+    # Paper keyword map for filtering Emma's items
+    paper_keywords = {
+        "HBMC": "HBMC", "Climate": "Climate", "Delphi": "Delphi", "SCPA": "SCPA", "General": "General"
+    }
+
+    # ── Collect all sections to show ──
+    all_sections = sorted(set(list(emily_by_section.keys()) + list(emma_by_section.keys())))
+
+    # Filter sections by paper
+    def section_matches_paper(section, paper):
+        if paper == "All Papers":
+            return True
+        kw = paper_keywords.get(paper, paper)
+        # Also check via SECTION_TASKS keys (Emily sections) or Emma paper field
+        emily_match = any(
+            kw.lower() in item.get("section", "").lower()
+            for item in emily_by_section.get(section, [])
+        )
+        emma_match = any(
+            item.get("paper", "") == paper
+            for item in emma_by_section.get(section, [])
+        )
+        return emily_match or emma_match or kw.lower() in section.lower()
+
+    filtered_sections = [s for s in all_sections if section_matches_paper(s, sel_paper)]
+
+    if not filtered_sections:
+        st.info("No feedback found for this filter.")
+    else:
+        priority_color = {"high": "#e74c3c", "medium": "#f39c12", "low": "#27ae60", "none": "#2ecc71"}
+        type_icon = {"quick_fix": "⚡", "clarification": "💬", "substantive": "📝", "major": "🏗️", "none": "✅", "substantive": "📝"}
+
+        for section in filtered_sections:
+            emily_items_sec = emily_by_section.get(section, []) if sel_reviewer in ("All", "Emily") else []
+            emma_items_sec  = [i for i in emma_by_section.get(section, []) if sel_reviewer in ("All", "Emma Tsui")]
+
+            all_sec_items = emily_items_sec + emma_items_sec
+            if not all_sec_items:
+                continue
+
+            pending_count = sum(1 for i in all_sec_items if i.get("status", "pending") == "pending")
+            done_count = len(all_sec_items) - pending_count
+
+            with st.expander(f"📄 **{section}** — {pending_count} pending · {done_count} done", expanded=False):
+
+                for item in all_sec_items:
+                    reviewer = item.get("reviewer", "Emily")
+                    badge = "🔵 Emily" if reviewer == "Emily" else "🟣 Emma Tsui"
+                    atype = item.get("action_type", "substantive")
+                    priority = item.get("priority", "medium")
+                    status = item.get("status", "pending")
+                    icon = type_icon.get(atype, "📋")
+                    mins = item.get("estimated_minutes", "")
+                    color = priority_color.get(priority, "#888")
+                    item_id = item.get("id", item.get("task_id", ""))
+                    feedback_text = item.get("feedback", item.get("comment", ""))
+
+                    st.markdown(
+                        f'<div style="border-left:3px solid {color};background:#1a1a2e;'
+                        f'border-radius:6px;padding:10px 14px;margin:6px 0;color:#f0e6c8;">'
+                        f'<span style="font-size:0.8rem;color:#aaa;">{badge} · {icon} {atype}'
+                        f'{f" · ~{mins}min" if mins else ""} · '
+                        f'<span style="color:{color};">{"🔴" if priority=="high" else "🟡" if priority=="medium" else "🟢"} {priority}</span></span><br>'
+                        f'<span style="font-size:0.93rem;">{feedback_text}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+
+                st.markdown("**✍️ Draft Response:**")
+                draft_key = f"lab_draft_{section}"
+                saved_val = st.session_state.saved_responses.get(draft_key, "")
+                draft = st.text_area("", value=saved_val, key=f"textarea_{section}", height=150, label_visibility="collapsed")
+
+                if st.button(f"💾 Save Draft (+10 XP)", key=f"save_{section}"):
+                    st.session_state.saved_responses[draft_key] = draft
+                    old_rank = get_rank(st.session_state.xp)
+                    st.session_state.xp += 10
+                    new_rank = get_rank(st.session_state.xp)
+                    if new_rank[0] != old_rank[0]:
+                        st.session_state.rank_up_title = new_rank[1]
+                    st.session_state.celebration_xp = 10
+                    save_all_progress()
+                    st.success("Draft saved! ⚡")
+                    st.rerun()
 
 # ── TAB 3: REWARDS & ANALYTICS ─────────────
 with t3:
