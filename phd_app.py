@@ -3034,6 +3034,237 @@ with t7:
 
         st.divider()
 
+        # ── Animated Focus Clock ──
+        st.subheader("⏱️ Focus Timer")
+        total_mins = sum(item.get("estimated_minutes", 0) or 0 for item in focus_items)
+
+        # Build segment data for the clock
+        segments = []
+        seg_colors = {"high": "#e74c3c", "medium": "#f39c12", "low": "#27ae60", "none": "#2ecc71"}
+        reviewer_colors = {"Emily": "#3498db", "Emma Tsui": "#9b59b6"}
+        for item in focus_items:
+            mins = item.get("estimated_minutes", 0) or 0
+            if mins > 0:
+                segments.append({
+                    "label": (item.get("feedback", "")[:40] + "...") if len(item.get("feedback","")) > 40 else item.get("feedback",""),
+                    "minutes": mins,
+                    "color": seg_colors.get(item.get("priority","medium"), "#f39c12"),
+                    "reviewer": item.get("reviewer", "Emily"),
+                })
+
+        import json as _json
+        seg_json = _json.dumps(segments)
+        total_secs = total_mins * 60
+
+        components.html(f"""
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {{ margin:0; background:transparent; font-family:Arial,sans-serif; display:flex; flex-direction:column; align-items:center; padding:12px 0; }}
+  canvas {{ display:block; }}
+  .controls {{ display:flex; gap:10px; margin-top:14px; }}
+  button {{
+    padding:8px 20px; border:none; border-radius:20px; cursor:pointer;
+    font-size:0.85rem; font-weight:bold; transition:all 0.2s;
+  }}
+  #startBtn {{ background:#f1c40f; color:#1a1a2e; }}
+  #startBtn:hover {{ background:#d4ac0d; }}
+  #resetBtn {{ background:#2c3e50; color:#f0e6c8; }}
+  #resetBtn:hover {{ background:#1a252f; }}
+  #timeDisplay {{ font-size:1.6rem; font-weight:bold; color:#f1c40f; margin-top:8px; letter-spacing:2px; }}
+  #currentItem {{ font-size:0.78rem; color:#aaa; margin-top:4px; max-width:320px; text-align:center; min-height:18px; }}
+  .legend {{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:10px; max-width:380px; }}
+  .leg-item {{ display:flex; align-items:center; gap:4px; font-size:0.7rem; color:#ccc; }}
+  .leg-dot {{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }}
+</style>
+</head>
+<body>
+<canvas id="clock" width="280" height="280"></canvas>
+<div id="timeDisplay">--:--</div>
+<div id="currentItem">Select a section to begin</div>
+<div class="controls">
+  <button id="startBtn" onclick="toggleTimer()">▶ Start</button>
+  <button id="resetBtn" onclick="resetTimer()">↺ Reset</button>
+</div>
+<div class="legend" id="legend"></div>
+
+<script>
+const canvas = document.getElementById('clock');
+const ctx = canvas.getContext('2d');
+const cx = 140, cy = 140, R = 120, r_inner = 72;
+const segments = {seg_json};
+const totalSecs = {total_secs};
+
+let elapsed = 0;
+let running = false;
+let interval = null;
+let lastTs = null;
+
+// Build legend
+const legend = document.getElementById('legend');
+segments.forEach(s => {{
+  const d = document.createElement('div');
+  d.className = 'leg-item';
+  d.innerHTML = `<div class="leg-dot" style="background:${{s.color}}"></div><span>${{s.reviewer}}: ${{s.minutes}}min</span>`;
+  legend.appendChild(d);
+}});
+
+function drawClock() {{
+  ctx.clearRect(0, 0, 280, 280);
+
+  // Dark background circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, R + 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fill();
+
+  // Draw segments
+  const total = segments.reduce((a,s) => a + s.minutes, 0) || 1;
+  let startAngle = -Math.PI / 2;
+  const segAngles = [];
+
+  segments.forEach((seg, i) => {{
+    const sweep = (seg.minutes / total) * Math.PI * 2;
+    const endAngle = startAngle + sweep;
+    segAngles.push({{ start: startAngle, end: endAngle, ...seg }});
+
+    // Dim if already elapsed
+    const segStartSec = segments.slice(0,i).reduce((a,s)=>a+s.minutes,0) * 60;
+    const segEndSec   = segStartSec + seg.minutes * 60;
+    const alpha = elapsed >= segEndSec ? 0.2 : 1.0;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = seg.color + Math.round(alpha * 255).toString(16).padStart(2,'0');
+    ctx.fill();
+
+    // Gap
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R + 2, startAngle, startAngle + 0.01);
+    ctx.strokeStyle = '#0a0a1a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    startAngle = endAngle;
+  }});
+
+  // Inner circle cutout
+  ctx.beginPath();
+  ctx.arc(cx, cy, r_inner, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fill();
+
+  // Progress ring (elapsed)
+  if (elapsed > 0 && totalSecs > 0) {{
+    const prog = Math.min(elapsed / totalSecs, 1);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r_inner + 6, -Math.PI/2, -Math.PI/2 + prog * Math.PI * 2);
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }}
+
+  // Sweep hand
+  if (totalSecs > 0) {{
+    const handAngle = -Math.PI/2 + (elapsed / totalSecs) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + R * Math.cos(handAngle), cy + R * Math.sin(handAngle));
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#f1c40f';
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Hand tip dot
+    ctx.beginPath();
+    ctx.arc(cx + R * Math.cos(handAngle), cy + R * Math.sin(handAngle), 4, 0, Math.PI*2);
+    ctx.fillStyle = '#f1c40f';
+    ctx.fill();
+  }}
+
+  // Center dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#f1c40f';
+  ctx.fill();
+
+  // Time text in center
+  const remaining = Math.max(0, totalSecs - elapsed);
+  const m = Math.floor(remaining / 60).toString().padStart(2,'0');
+  const s = Math.floor(remaining % 60).toString().padStart(2,'0');
+  document.getElementById('timeDisplay').textContent = m + ':' + s;
+
+  // Current item label
+  let cumSecs = 0;
+  let currentLabel = elapsed >= totalSecs ? '✅ Complete!' : '';
+  for (let i = 0; i < segments.length; i++) {{
+    cumSecs += segments[i].minutes * 60;
+    if (elapsed < cumSecs) {{
+      currentLabel = segments[i].reviewer + ': ' + segments[i].label;
+      break;
+    }}
+  }}
+  document.getElementById('currentItem').textContent = currentLabel;
+
+  // Pulse center when complete
+  if (elapsed >= totalSecs && totalSecs > 0) {{
+    ctx.beginPath();
+    ctx.arc(cx, cy, r_inner - 10, 0, Math.PI*2);
+    ctx.fillStyle = '#2ecc7133';
+    ctx.fill();
+  }}
+}}
+
+function toggleTimer() {{
+  const btn = document.getElementById('startBtn');
+  if (running) {{
+    running = false;
+    clearInterval(interval);
+    btn.textContent = '▶ Resume';
+  }} else {{
+    if (elapsed >= totalSecs) return;
+    running = true;
+    lastTs = Date.now();
+    interval = setInterval(() => {{
+      const now = Date.now();
+      elapsed += (now - lastTs) / 1000;
+      lastTs = now;
+      if (elapsed >= totalSecs) {{
+        elapsed = totalSecs;
+        running = false;
+        clearInterval(interval);
+        document.getElementById('startBtn').textContent = '✅ Done';
+      }}
+      drawClock();
+    }}, 100);
+    btn.textContent = '⏸ Pause';
+  }}
+}}
+
+function resetTimer() {{
+  running = false;
+  clearInterval(interval);
+  elapsed = 0;
+  document.getElementById('startBtn').textContent = '▶ Start';
+  drawClock();
+}}
+
+drawClock();
+</script>
+</body>
+</html>
+""", height=440)
+
+        st.caption(f"Total estimated time for this section: **{total_mins} min** across {len([i for i in focus_items if (i.get('estimated_minutes') or 0) > 0])} items")
+
+        st.divider()
+
         # ── Dissertation Coach ──
         focus_draft_key = f"focus_draft_{focus_section}"
         st.subheader("🦇 Dissertation Coach")
