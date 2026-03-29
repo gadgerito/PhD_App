@@ -71,7 +71,7 @@ def load_all_progress():
         d.get("notebook_entries", []),
         )
     except Exception as e:
-        print(f"Error loading progress: {e}")
+        st.error(f"MongoDB connection error: {e}")
         return 0, set(), {}, {}, [], [], {}, "", []
 
 
