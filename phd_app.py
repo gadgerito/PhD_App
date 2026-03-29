@@ -1326,18 +1326,134 @@ drawClock();
     st.divider()
     st.subheader("🦇 Dissertation Coach")
 
-    # Pick up focus section if set, else general mode
-    _focus_sec = st.session_state.get("focus_section_select", "")
-    if _focus_sec:
-        st.caption(f"📍 Focus: {_focus_sec}")
-    else:
-        st.caption("General mode — go to 🎯 Focus to load section feedback")
+    # ── Build full ordered section list ──
+    _all_wt_sections = sorted(set(
+        list(task_to_sections_inv := {s for ids in SECTION_TASKS.values() for s in []}) |
+        set(SECTION_TASKS.keys())
+    ))
+    # Use Emma's sections + SECTION_TASKS keys as the walkthrough order
+    _wt_sections = list(SECTION_TASKS.keys())
+    try:
+        _emma_secs = list(get_mongo_db()["comps_feedback"].distinct("section"))
+        for s in _emma_secs:
+            if s not in _wt_sections:
+                _wt_sections.append(s)
+    except:
+        pass
 
-    if 'coach_messages' not in st.session_state:
+    # ── Walkthrough state ──
+    if "walkthrough_active" not in st.session_state:
+        st.session_state.walkthrough_active = False
+    if "walkthrough_idx" not in st.session_state:
+        st.session_state.walkthrough_idx = 0
+    if "walkthrough_introduced" not in st.session_state:
+        st.session_state.walkthrough_introduced = -1
+    if "coach_messages" not in st.session_state:
         st.session_state.coach_messages = []
 
+    wt_active = st.session_state.walkthrough_active
+    wt_idx = st.session_state.walkthrough_idx
+    wt_idx = min(wt_idx, len(_wt_sections) - 1)
+    current_wt_sec = _wt_sections[wt_idx] if _wt_sections else ""
+
+    # ── Walkthrough controls ──
+    if not wt_active:
+        if st.button("🗺️ Start Guided Walkthrough", use_container_width=True, key="wt_start"):
+            st.session_state.walkthrough_active = True
+            st.session_state.walkthrough_idx = 0
+            st.session_state.walkthrough_introduced = -1
+            st.session_state.coach_messages = []
+            st.session_state.focus_section_select = _wt_sections[0] if _wt_sections else ""
+            st.rerun()
+        _focus_sec = st.session_state.get("focus_section_select", "")
+        if _focus_sec:
+            st.caption(f"📍 {_focus_sec}")
+        else:
+            st.caption("General mode — or start a guided walkthrough above")
+    else:
+        # Section header
+        st.markdown(
+            f'<div style="background:#1a1a2e;border:1px solid #f1c40f;border-radius:8px;'
+            f'padding:8px 12px;margin-bottom:6px;">'
+            f'<span style="color:#f1c40f;font-size:0.72rem;">SECTION {wt_idx+1} / {len(_wt_sections)}</span><br>'
+            f'<b style="color:#f0e6c8;font-size:0.85rem;">{current_wt_sec}</b>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+
+        # Progress bar
+        st.progress((wt_idx) / len(_wt_sections))
+
+        nav1, nav2, nav3 = st.columns(3)
+        if nav1.button("◀ Prev", key="wt_prev", use_container_width=True, disabled=(wt_idx == 0)):
+            st.session_state.walkthrough_idx -= 1
+            st.session_state.coach_messages = []
+            st.session_state.walkthrough_introduced = -1
+            st.session_state.focus_section_select = _wt_sections[st.session_state.walkthrough_idx]
+            st.rerun()
+        if nav2.button("Next ▶", key="wt_next", use_container_width=True, disabled=(wt_idx >= len(_wt_sections)-1)):
+            st.session_state.walkthrough_idx += 1
+            st.session_state.coach_messages = []
+            st.session_state.walkthrough_introduced = -1
+            st.session_state.focus_section_select = _wt_sections[st.session_state.walkthrough_idx]
+            st.rerun()
+        if nav3.button("✖ End", key="wt_end", use_container_width=True):
+            st.session_state.walkthrough_active = False
+            st.session_state.coach_messages = []
+            st.rerun()
+
+        # Auto-generate intro when entering a new section
+        if st.session_state.walkthrough_introduced != wt_idx:
+            with st.spinner("🦇 Coach is preparing your briefing..."):
+                try:
+                    import anthropic
+                    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+
+                    _fb_items = [
+                        {"reviewer": "Emily", "feedback": c["comment"],
+                         "priority": "high", "action_type": "substantive"}
+                        for tid, c in lab_context.items()
+                        if current_wt_sec in task_to_sections.get(tid, [])
+                    ]
+                    try:
+                        _fb_items += list(get_mongo_db()["comps_feedback"].find(
+                            {"section": current_wt_sec}, {"_id": 0}
+                        ))
+                    except:
+                        pass
+                    _fb_ctx = "\n".join(
+                        f"- [{i.get('reviewer','?')}] ({i.get('priority','?')} priority, ~{i.get('estimated_minutes','?')}min) {i.get('feedback','')}"
+                        for i in _fb_items
+                    ) or "No specific feedback items found."
+                    _draft = st.session_state.saved_responses.get(f"focus_draft_{current_wt_sec}", "")
+
+                    _draft_preview = ("Their current draft:\n" + _draft[:300]) if _draft else "No draft written yet."
+                    _intro_prompt = (
+                        f"You are a dissertation writing coach walking a PhD student through their comprehensive exam revisions section by section. "
+                        f"They have their Google Doc open and are ready to edit.\n\n"
+                        f"Section: **{current_wt_sec}** ({wt_idx+1} of {len(_wt_sections)})\n\n"
+                        f"Committee feedback:\n{_fb_ctx}\n\n"
+                        f"{_draft_preview}\n\n"
+                        f"In 3-5 sentences: introduce this section, highlight the 1-2 most important feedback items to tackle first, "
+                        f"and give one concrete suggestion for how to start. Be direct and doctoral-level. "
+                        f"End with a Batman-themed encouragement. Keep it brief — this is a sidebar."
+                    )
+                    intro_response = client.messages.create(
+                        model="claude-sonnet-4-20250514",
+                        max_tokens=400,
+                        messages=[{"role": "user", "content": _intro_prompt}]
+                    )
+                    intro_text = intro_response.content[0].text
+                    st.session_state.coach_messages = [{"role": "assistant", "content": intro_text}]
+                    st.session_state.walkthrough_introduced = wt_idx
+                    st.rerun()
+                except Exception as e:
+                    st.session_state.walkthrough_introduced = wt_idx
+                    st.error(f"Intro failed: {e}")
+
+    # ── Chat history ──
     for msg in st.session_state.coach_messages[-6:]:
-        if msg['role'] == 'user':
+        if msg["role"] == "user":
             st.markdown(
                 f'<div style="background:#1a1a2e;border-left:3px solid #f1c40f;'
                 f'border-radius:6px;padding:8px 12px;color:#f0e6c8;'
@@ -1354,9 +1470,9 @@ drawClock();
 
     coach_input = st.text_area(
         "Ask your coach:",
-        placeholder="Ask about your current section, paste a paragraph, or ask a writing question...",
+        placeholder="Ask a follow-up, paste a paragraph to review, or say 'next' to move on...",
         key="coach_input",
-        height=100
+        height=80
     )
 
     coach_col1, coach_col2 = st.columns(2)
@@ -1369,32 +1485,30 @@ drawClock();
                     import anthropic
                     client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-                    # Build context from current focus section
-                    _focus_sec = st.session_state.get("focus_section_select", "")
-                    if _focus_sec:
-                        _fb_items = (
-                            [{"reviewer":"Emily","feedback":c["comment"]} for tid,c in lab_context.items() if _focus_sec in task_to_sections.get(tid,[])]
-                        )
-                        try:
-                            _fb_items += list(get_mongo_db()["comps_feedback"].find({"section": _focus_sec}, {"_id":0}))
-                        except:
-                            pass
-                        _fb_ctx = "\n".join(f"- [{i.get('reviewer','?')}] {i.get('feedback','')}" for i in _fb_items)
-                        _draft = st.session_state.saved_responses.get(f"focus_draft_{_focus_sec}", "")
-                        system_prompt = f"""You are an expert dissertation writing coach specializing in public health, aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate working on comprehensive exams.
+                    _focus_sec = current_wt_sec if wt_active else st.session_state.get("focus_section_select", "")
+                    _fb_items = [
+                        {"reviewer": "Emily", "feedback": c["comment"]}
+                        for tid, c in lab_context.items()
+                        if _focus_sec in task_to_sections.get(tid, [])
+                    ]
+                    try:
+                        _fb_items += list(get_mongo_db()["comps_feedback"].find({"section": _focus_sec}, {"_id": 0}))
+                    except:
+                        pass
+                    _fb_ctx = "\n".join(f"- [{i.get('reviewer','?')}] {i.get('feedback','')}" for i in _fb_items)
+                    _draft = st.session_state.saved_responses.get(f"focus_draft_{_focus_sec}", "")
 
-Current focus section: **{_focus_sec}**
+                    system_prompt = f"""You are an expert dissertation writing coach walking a PhD student through their comprehensive exam revisions. They have their Google Doc open.
 
-Committee feedback for this section:
+{"GUIDED WALKTHROUGH MODE — Section " + str(wt_idx+1) + " of " + str(len(_wt_sections)) if wt_active else ""}
+Current section: **{_focus_sec}**
+
+Committee feedback:
 {_fb_ctx if _fb_ctx else "None loaded."}
 
-{"Student's current draft:\n" + _draft if _draft else "No draft yet."}
+{"Student's draft:\n" + _draft if _draft else "No draft yet."}
 
-Be direct, specific, and doctoral-level. Keep responses concise — this is a sidebar chat. Use Batman metaphors occasionally."""
-                    else:
-                        system_prompt = """You are an expert dissertation writing coach specializing in public health, aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate working on comprehensive exams covering home-based medical care, climate disasters and older adults, Delphi methodology, and subnational comparative policy analysis.
-
-Be direct, specific, and doctoral-level. Keep responses concise — this is a sidebar chat. Use Batman metaphors occasionally."""
+Be direct, specific, doctoral-level. Keep responses concise — this is a sidebar. Use Batman metaphors occasionally."""
 
                     response = client.messages.create(
                         model="claude-sonnet-4-20250514",
@@ -1411,6 +1525,7 @@ Be direct, specific, and doctoral-level. Keep responses concise — this is a si
 
     if coach_col2.button("🗑️ Clear", use_container_width=True, key="coach_clear"):
         st.session_state.coach_messages = []
+        st.session_state.walkthrough_introduced = -1
         st.rerun()
 
 # ─────────────────────────────────────────────
