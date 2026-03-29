@@ -37,7 +37,13 @@ if not check_password():
 # -- MongoDB --
 @st.cache_resource
 def get_mongo_db():
-    client = MongoClient(st.secrets["MONGODB_URI"])
+    client = MongoClient(
+        st.secrets["mongo"]["uri"],
+        username=st.secrets["mongo"]["username"],
+        password=st.secrets["mongo"]["password"],
+        tls=True,
+        tlsAllowInvalidCertificates=True
+    )
     return client["phd_app"]
 
 def get_db():
