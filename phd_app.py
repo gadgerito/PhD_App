@@ -101,7 +101,7 @@ def save_all_progress():
             "last_worked_section": st.session_state.get("last_worked_section", ""),
             "last_worked_date": st.session_state.get("last_worked_date", ""),
             "notebook_entries": st.session_state.get("notebook_entries", []),
-            "section_timers": st.session_state.get("section_timers", {})
+            "section_timers": st.session_state.get("section_timers", {}),
             "active_timer": {
                 "running": st.session_state.get("timer_running", False),
                 "paused": st.session_state.get("timer_paused", False),
