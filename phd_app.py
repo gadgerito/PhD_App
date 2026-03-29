@@ -9,6 +9,7 @@ import random
 from pymongo import MongoClient
 from pathlib import Path
 import base64
+from comps_coach import render_floating_button, render_comps_modal
 @st.cache_data
 def get_audio_b64():
     audio_path = Path(__file__).parent / "static" / "bat.sting.wav"
@@ -3513,3 +3514,9 @@ Today's drafts:
         if st.session_state.get("latest_daily_update"):
             with st.expander("📋 Last Update"):
                 st.write(st.session_state["latest_daily_update"])
+
+# ── COMPS COACH FLOATING BUTTON ──────────────────────────────────────────────
+import anthropic as _anthropic
+_comps_client = _anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+render_floating_button()
+render_comps_modal(_comps_client)
