@@ -891,6 +891,12 @@ SECTION_TASKS = {
     "Conclusion (SCPA)": ["#85", "#89"],
 }
 
+# Invert SECTION_TASKS: task_id -> [section, ...] — used by sidebar and tabs
+task_to_sections = {}
+for _st_title, _st_ids in SECTION_TASKS.items():
+    for _tid in _st_ids:
+        task_to_sections.setdefault(_tid, []).append(_st_title)
+
 # ─────────────────────────────────────────────
 # 10. SIDEBAR
 # ─────────────────────────────────────────────
@@ -1498,12 +1504,6 @@ with t2:
         st.warning(f"Could not load Emma's feedback: {e}")
 
     # ── Build Emily's feedback mapped to sections ──
-    # Invert SECTION_TASKS: task_id -> [section, ...]
-    task_to_sections = {}
-    for section_title, task_ids in SECTION_TASKS.items():
-        for tid in task_ids:
-            task_to_sections.setdefault(tid, []).append(section_title)
-
     emily_by_section = {}
     for tid, ctx in lab_context.items():
         sections = task_to_sections.get(tid, ["General"])
