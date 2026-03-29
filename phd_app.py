@@ -140,7 +140,7 @@ st.session_state.pomodoro_done   = False
 st.session_state.reward_claimed  = ''
 
 # Play audio if flagged
-if st.session_state.get('play_audio'):
+if st.session_state.get('play_audio') or st.session_state.get('celebration_xp', 0) > 0:
     audio_b64 = get_audio_b64()
     components.html(
         f"""
@@ -969,6 +969,7 @@ with st.sidebar:
                     st.session_state.task_timers[task_id] = \
                         st.session_state.task_timers.get(task_id, 0) + 25
                     st.session_state.xp += 25
+                    st.session_state.celebration_xp = 25
                     st.session_state.pomodoro_done = True
                     save_all_progress()
                     st.balloons()
@@ -1654,15 +1655,9 @@ with t1:
                         st.session_state.completed_tasks.remove(m['id'])
                         st.session_state.xp -= m['pts']
                     else:
-                        # COMPLETE: Add to completed & award XP (once)
-                        st.session_state.completed_tasks.add(m['id'])
-                        st.session_state.xp += m['pts']  # Fixed: was adding XP twice
-                        
-                        # Trigger visuals (The "Bat Flash")
-                        # COMPLETE: Add to completed & award XP
                         st.session_state.completed_tasks.add(m['id'])
                         st.session_state.xp += m['pts']
-                        st.session_state.play_audio = True  # ← flag audio to play on rerun
+                        st.session_state.celebration_xp = m['pts']
                         st.toast(f"Justice Served! +{m['pts']} XP", icon="🦇")
 
                         # Save & Refresh
