@@ -905,6 +905,14 @@ with st.sidebar:
     st.metric("Total XP", st.session_state.xp)
     render_rank_badge(st.session_state.xp)
 
+    with st.expander("⚠️ Reset XP"):
+        st.warning("This will set your XP back to 0. This cannot be undone.")
+        if st.button("Reset XP to 0", type="primary"):
+            st.session_state.xp = 0
+            get_db().update_one({"_id": "progress"}, {"$set": {"xp": 0}}, upsert=True)
+            st.success("XP reset to 0.")
+            st.rerun()
+
     total_tasks = sum(len(v) for v in master_tasks.values())
     completed_count = len(st.session_state.completed_tasks)
     progress_pct = completed_count / total_tasks if total_tasks > 0 else 0
