@@ -64,7 +64,7 @@ def load_all_progress():
         d = db.find_one({"_id": "main"})
 
         if not d:
-            return 0, set(), {}, {}, [], [], {}, ""
+            return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}
 
         return (d.get("xp", 0),
         set(d.get("completed_tasks", [])),
@@ -82,12 +82,14 @@ def load_all_progress():
         )
     except Exception as e:
         st.error(f"MongoDB connection error: {e}")
-        return 0, set(), {}, {}, [], [], {}, "", [], {}
+        return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}
 
 
 def save_all_progress():
     try:
         db = get_db()
+        target_str = st.session_state.target_time.isoformat() if st.session_state.get("target_time") else None
+        pause_str = st.session_state.pause_start.isoformat() if st.session_state.get("pause_start") else None
         data = {
             "_id": "main",
             "xp": st.session_state.xp,
@@ -106,8 +108,8 @@ def save_all_progress():
                 "running": st.session_state.get("timer_running", False),
                 "paused": st.session_state.get("timer_paused", False),
                 "target_time": target_str,
-                "pause _start" pause_str,
-                "mission": st_session_state.get("active_mission", "")
+                "pause_start": pause_str,
+                "mission": st.session_state.get("active_mission", "")
             },
         }
         db.replace_one({"_id": "main"}, data, upsert=True)
