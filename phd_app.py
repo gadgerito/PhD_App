@@ -3341,34 +3341,13 @@ with t7:
     st.divider()
     st.subheader("📝 Google Doc Editor")
 
-    gdoc_url = st.text_input(
-        "Paste your Google Doc URL:",
-        value=st.session_state.get("gdoc_url", ""),
-        placeholder="https://docs.google.com/document/d/YOUR_DOC_ID/edit",
-        key="gdoc_url_input"
+    _GDOC_URL = "https://docs.google.com/document/d/10VWt2EcFl8oBFwb_kdBl_5j3C1IAhOjdPcGzWmIlIhs/edit"
+    components.html(
+        f'<iframe src="{_GDOC_URL}" width="100%" height="700" '
+        f'style="border:1px solid #f1c40f;border-radius:8px;" '
+        f'allow="autoplay" frameborder="0"></iframe>',
+        height=710
     )
-
-    if gdoc_url != st.session_state.get("gdoc_url", ""):
-        st.session_state.gdoc_url = gdoc_url
-
-    if gdoc_url:
-        # Convert any sharing URL to an embeddable URL
-        if "/edit" in gdoc_url:
-            embed_url = gdoc_url.split("/edit")[0] + "/edit"
-        elif "/view" in gdoc_url:
-            embed_url = gdoc_url.split("/view")[0] + "/edit"
-        else:
-            embed_url = gdoc_url
-
-        components.html(
-            f'<iframe src="{embed_url}" width="100%" height="700" '
-            f'style="border:1px solid #f1c40f;border-radius:8px;" '
-            f'allow="autoplay" frameborder="0"></iframe>',
-            height=710
-        )
-        st.caption("Make sure the doc is shared with 'Anyone with the link can edit' for full editing access.")
-    else:
-        st.info("Paste a Google Doc link above to edit it here. Set sharing to 'Anyone with the link can edit'.")
 
     # ── EXPORT & DAILY UPDATE ──────────────────────────────
     st.divider()
