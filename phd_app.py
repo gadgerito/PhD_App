@@ -76,10 +76,11 @@ def load_all_progress():
         d.get("last_worked_section", ""),
         d.get("last_worked_date", ""),
         d.get("notebook_entries", []),
+        d.get("section_timers", {}),
         )
     except Exception as e:
         st.error(f"MongoDB connection error: {e}")
-        return 0, set(), {}, {}, [], [], {}, "", []
+        return 0, set(), {}, {}, [], [], {}, "", [], {}
 
 
 def save_all_progress():
@@ -98,6 +99,7 @@ def save_all_progress():
             "last_worked_section": st.session_state.get("last_worked_section", ""),
             "last_worked_date": st.session_state.get("last_worked_date", ""),
             "notebook_entries": st.session_state.get("notebook_entries", []),
+            "section_timers": st.session_state.get("section_timers", {}),
         }
         db.replace_one({"_id": "main"}, data, upsert=True)
     except Exception as e:
@@ -106,7 +108,7 @@ def save_all_progress():
 # 2. INITIALIZATION
 # ─────────────────────────────────────────────
 if 'initialized' not in st.session_state:
-    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook = load_all_progress()
+    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers = load_all_progress()
     st.session_state.xp = xp
     st.session_state.completed_tasks = comp_tasks
     st.session_state.saved_responses = resps
@@ -123,6 +125,7 @@ if 'initialized' not in st.session_state:
     st.session_state.last_task_id = last_task
     st.session_state.last_worked_section = last_worked_section
     st.session_state.last_worked_date = last_worked_date
+    st.session_state.section_timers = section_timers if section_timers else {}
     st.session_state.initialized = True
 
 # Celebration state — read ONCE at top of render, then reset so they don't replay next run
@@ -1331,6 +1334,29 @@ drawClock();
 </script></body></html>
 """, height=380)
 
+    # ── Log Focus Time to Section ──
+    if _clock_section:
+        _log_mins = st.number_input(
+            "Minutes to log:", min_value=1, max_value=300,
+            value=max(1, _total_mins), step=1, key="clock_log_mins"
+        )
+        if st.button("💾 Log Focus Time (+XP)", use_container_width=True, key="clock_log_btn"):
+            st.session_state.section_timers[_clock_section] = \
+                st.session_state.section_timers.get(_clock_section, 0) + _log_mins
+            old_rank = get_rank(st.session_state.xp)
+            st.session_state.xp += _log_mins
+            new_rank = get_rank(st.session_state.xp)
+            if new_rank[0] != old_rank[0]:
+                st.session_state.rank_up_title = new_rank[1]
+            st.session_state.celebration_xp = _log_mins
+            st.session_state.last_worked_section = _clock_section
+            st.session_state.last_worked_date = datetime.now().strftime("%b %d, %Y at %I:%M %p")
+            save_all_progress()
+            st.success(f"Logged {_log_mins}m to **{_clock_section}** +{_log_mins} XP ⚡")
+            st.rerun()
+    else:
+        st.caption("Select a section in Focus Mode to log time.")
+
     st.divider()
     st.subheader("🦇 Dissertation Coach")
 
@@ -1858,15 +1884,32 @@ with t3:
 
     with col_r:
         st.subheader("📊 Focus Time Analytics")
-        if st.session_state.task_timers:
-            df         = pd.DataFrame(
-                list(st.session_state.task_timers.items()), columns=['Task ID', 'Minutes']
+        section_timers_data = st.session_state.get("section_timers", {})
+        task_timers_data = st.session_state.task_timers
+
+        if section_timers_data:
+            st.markdown("**⏱️ Time by Section (Focus Clock)**")
+            df_sec = pd.DataFrame(
+                list(section_timers_data.items()), columns=['Section', 'Minutes']
+            ).sort_values('Minutes', ascending=False)
+            st.bar_chart(df_sec.set_index('Section'))
+            sec_total = sum(section_timers_data.values())
+            st.metric("Total Focus Clock Time", f"{sec_total // 60}h {sec_total % 60}m")
+
+        if task_timers_data:
+            st.markdown("**🍅 Time by Task (Pomodoro)**")
+            df_task = pd.DataFrame(
+                list(task_timers_data.items()), columns=['Task ID', 'Minutes']
             )
-            st.bar_chart(df.set_index('Task ID'))
-            total_mins = sum(st.session_state.task_timers.values())
-            st.metric("Total PhD Focus Time", f"{total_mins // 60}h {total_mins % 60}m")
+            st.bar_chart(df_task.set_index('Task ID'))
+            task_total = sum(task_timers_data.values())
+            st.metric("Total Pomodoro Time", f"{task_total // 60}h {task_total % 60}m")
+
+        all_mins = sum(section_timers_data.values()) + sum(task_timers_data.values())
+        if all_mins:
+            st.metric("🦇 Total PhD Focus Time", f"{all_mins // 60}h {all_mins % 60}m")
         else:
-            st.info("Start a Pomodoro sprint to track focus time! 🦇")
+            st.info("Start a Focus Clock or Pomodoro sprint to track time! 🦇")
 
 # ── TAB 4: WRITING GUIDE ───────────────────
 with t4:
