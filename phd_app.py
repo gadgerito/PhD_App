@@ -1251,8 +1251,8 @@ Be direct, specific, and doctoral-level. Keep responses concise — this is a si
 # ─────────────────────────────────────────────
 # 11. TABS
 # ─────────────────────────────────────────────
-t1, t2, t3, t4, t5, t6 = st.tabs([
-    "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review", "🧠 Mind Map"
+t1, t2, t3, t4, t5, t6, t7 = st.tabs([
+    "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review", "🧠 Mind Map", "🎯 Focus"
 ])
 
 # ── TAB 1: TASK BOARD ──────────────────────
@@ -2961,3 +2961,194 @@ canvas.addEventListener('mouseup', () => {{ dragging = null; }});
             if st.button("🗑️ Clear Mind Map", key="clear_mindmap"):
                 st.session_state.mindmap_data = None
                 st.rerun()
+
+# ── TAB 7: FOCUS MODE ────────────────────
+with t7:
+    st.header("🎯 Focus Mode")
+    st.caption("One section. All feedback. Full coach. No distractions.")
+
+    # Load Emma's feedback
+    focus_emma_items = []
+    try:
+        focus_emma_items = list(get_mongo_db()["comps_feedback"].find({}, {"_id": 0}))
+    except Exception as e:
+        st.warning(f"Could not load Emma's feedback: {e}")
+
+    # Build section list from Emily + Emma
+    focus_emily_by_section = {}
+    for tid, ctx in lab_context.items():
+        for sec in task_to_sections.get(tid, ["General"]):
+            focus_emily_by_section.setdefault(sec, []).append({
+                "reviewer": "Emily", "task_id": tid,
+                "feedback": ctx["comment"], "action_type": "substantive",
+                "priority": "high", "status": "pending", "estimated_minutes": "",
+            })
+
+    focus_emma_by_section = {}
+    for item in focus_emma_items:
+        sec = item.get("section", "General")
+        focus_emma_by_section.setdefault(sec, []).append(item)
+
+    all_focus_sections = sorted(set(list(focus_emily_by_section.keys()) + list(focus_emma_by_section.keys())))
+
+    # ── Section picker ──
+    focus_col1, focus_col2 = st.columns([3, 1])
+    focus_section = focus_col1.selectbox("Choose a section to work on:", all_focus_sections, key="focus_section_select")
+    focus_reviewer = focus_col2.selectbox("Reviewer:", ["All", "Emily", "Emma Tsui"], key="focus_reviewer_select")
+
+    focus_items = []
+    if focus_reviewer in ("All", "Emily"):
+        focus_items += focus_emily_by_section.get(focus_section, [])
+    if focus_reviewer in ("All", "Emma Tsui"):
+        focus_items += focus_emma_by_section.get(focus_section, [])
+
+    st.divider()
+
+    if not focus_items:
+        st.info("No feedback for this section/reviewer combination.")
+    else:
+        priority_color = {"high": "#e74c3c", "medium": "#f39c12", "low": "#27ae60", "none": "#2ecc71"}
+        type_icon = {"quick_fix": "⚡", "clarification": "💬", "substantive": "📝", "major": "🏗️", "none": "✅"}
+
+        # ── Feedback cards ──
+        st.subheader(f"📋 Feedback for: {focus_section}")
+        for item in focus_items:
+            reviewer = item.get("reviewer", "Emily")
+            badge = "🔵 Emily" if reviewer == "Emily" else "🟣 Emma Tsui"
+            atype = item.get("action_type", "substantive")
+            priority = item.get("priority", "medium")
+            color = priority_color.get(priority, "#888")
+            icon = type_icon.get(atype, "📋")
+            mins = item.get("estimated_minutes", "")
+            feedback_text = item.get("feedback", item.get("comment", ""))
+            st.markdown(
+                f'<div style="border-left:4px solid {color};background:#1a1a2e;'
+                f'border-radius:8px;padding:12px 16px;margin:6px 0;color:#f0e6c8;">'
+                f'<span style="font-size:0.8rem;color:#aaa;">{badge} · {icon} {atype}'
+                f'{f" · ~{mins}min" if mins else ""} · '
+                f'<span style="color:{color};">{"🔴" if priority=="high" else "🟡" if priority=="medium" else "🟢"} {priority}</span></span><br><br>'
+                f'<span style="font-size:0.95rem;line-height:1.6;">{feedback_text}</span>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+        st.divider()
+
+        # ── Draft area ──
+        st.subheader("✍️ Your Draft Response")
+        focus_draft_key = f"focus_draft_{focus_section}"
+        focus_saved = st.session_state.saved_responses.get(focus_draft_key, "")
+        focus_draft = st.text_area(
+            "",
+            value=focus_saved,
+            key=f"focus_textarea_{focus_section}",
+            height=220,
+            placeholder="Write your response to this feedback here...",
+            label_visibility="collapsed"
+        )
+        if st.button("💾 Save Draft (+10 XP)", key=f"focus_save_{focus_section}", use_container_width=True):
+            st.session_state.saved_responses[focus_draft_key] = focus_draft
+            st.session_state.last_worked_section = focus_section
+            st.session_state.last_worked_date = datetime.now().strftime("%b %d, %Y at %I:%M %p")
+            old_rank = get_rank(st.session_state.xp)
+            st.session_state.xp += 10
+            new_rank = get_rank(st.session_state.xp)
+            if new_rank[0] != old_rank[0]:
+                st.session_state.rank_up_title = new_rank[1]
+            st.session_state.celebration_xp = 10
+            save_all_progress()
+            st.success("Draft saved! ⚡")
+            st.rerun()
+
+        st.divider()
+
+        # ── Dissertation Coach ──
+        st.subheader("🦇 Dissertation Coach")
+        st.caption("Your coach knows this section's feedback and your draft. Just ask.")
+
+        focus_coach_key = f"focus_coach_{focus_section}"
+        if focus_coach_key not in st.session_state:
+            st.session_state[focus_coach_key] = []
+
+        feedback_context = "\n".join(
+            f"- [{item.get('reviewer','?')}] {item.get('feedback', item.get('comment',''))}"
+            for item in focus_items
+        )
+        current_draft = st.session_state.saved_responses.get(focus_draft_key, "")
+
+        focus_system_prompt = f"""You are an expert dissertation writing coach specializing in public health, aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate working on comprehensive exams covering home-based medical care, climate disasters and older adults, Delphi methodology, and subnational comparative policy analysis.
+
+You are in FOCUS MODE for the section: **{focus_section}**
+
+Committee feedback to address:
+{feedback_context}
+
+{"Student's current draft:\n" + current_draft if current_draft else "No draft written yet."}
+
+Be direct, specific, and doctoral-level. Help them write strong responses to this feedback. Reference specific feedback items. Use Batman metaphors occasionally."""
+
+        # Chat history
+        for msg in st.session_state[focus_coach_key][-8:]:
+            if msg["role"] == "user":
+                st.markdown(
+                    f'<div style="background:#1a1a2e;border-left:3px solid #f1c40f;'
+                    f'border-radius:8px;padding:10px 14px;margin:6px 0;color:#f0e6c8;">'
+                    f'<b style="color:#f1c40f;">You:</b><br>{msg["content"]}</div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f'<div style="background:#0d2b0d;border-left:3px solid #2ecc71;'
+                    f'border-radius:8px;padding:10px 14px;margin:6px 0;color:#d5f5e3;">'
+                    f'<b style="color:#2ecc71;">🦇 Coach:</b><br>{msg["content"]}</div>',
+                    unsafe_allow_html=True
+                )
+
+        focus_input = st.text_area(
+            "Ask your coach:",
+            placeholder="e.g. 'Help me draft a response to the resilience definitions feedback' or 'What's the strongest argument I can make here?'",
+            key=f"focus_coach_input_{focus_section}",
+            height=100
+        )
+
+        fc1, fc2, fc3 = st.columns([2, 1, 1])
+        if fc1.button("💬 Send to Coach", key=f"focus_coach_send_{focus_section}", use_container_width=True):
+            if focus_input:
+                st.session_state[focus_coach_key].append({"role": "user", "content": focus_input})
+                with st.spinner("🦇 Coach is thinking..."):
+                    try:
+                        import anthropic
+                        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+                        response = client.messages.create(
+                            model="claude-sonnet-4-20250514",
+                            max_tokens=800,
+                            system=focus_system_prompt,
+                            messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state[focus_coach_key][-12:]]
+                        )
+                        st.session_state[focus_coach_key].append({"role": "assistant", "content": response.content[0].text})
+                        st.session_state.xp += 5
+                        save_all_progress()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Coach error: {e}")
+            else:
+                st.warning("Ask something first!")
+
+        if fc2.button("🔄 New Session", key=f"focus_coach_clear_{focus_section}", use_container_width=True):
+            st.session_state[focus_coach_key] = []
+            st.rerun()
+
+        if fc3.button("📋 Summarize", key=f"focus_coach_summary_{focus_section}", use_container_width=True):
+            with st.spinner("Summarizing..."):
+                try:
+                    import anthropic
+                    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+                    history = "\n".join(f"{m['role'].upper()}: {m['content']}" for m in st.session_state[focus_coach_key])
+                    summary_response = client.messages.create(
+                        model="claude-sonnet-4-20250514",
+                        max_tokens=300,
+                        messages=[{"role": "user", "content": f"Summarize the key action items and insights from this coaching session in 3-5 bullet points:\n\n{history}"}]
+                    )
+                    st.info(f"**Session Summary:**\n\n{summary_response.content[0].text}")
+                except Exception as e:
+                    st.error(f"Summary failed: {e}")
