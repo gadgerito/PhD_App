@@ -3396,15 +3396,19 @@ with t7:
 
     # ── GOOGLE DOC EMBED ──────────────────────────────────
     st.divider()
-    st.subheader("📝 Google Doc Editor")
 
-    _GDOC_URL = "https://docs.google.com/document/d/10VWt2EcFl8oBFwb_kdBl_5j3C1IAhOjdPcGzWmIlIhs/edit"
-    components.html(
-        f'<iframe src="{_GDOC_URL}" width="100%" height="700" '
-        f'style="border:1px solid #f1c40f;border-radius:8px;" '
-        f'allow="autoplay" frameborder="0"></iframe>',
-        height=710
-    )
+    @st.fragment
+    def _render_gdoc():
+        st.subheader("📝 Google Doc Editor")
+        _GDOC_URL = "https://docs.google.com/document/d/10VWt2EcFl8oBFwb_kdBl_5j3C1IAhOjdPcGzWmIlIhs/edit"
+        components.html(
+            f'<iframe src="{_GDOC_URL}" width="100%" height="700" '
+            f'style="border:1px solid #f1c40f;border-radius:8px;" '
+            f'allow="autoplay" frameborder="0"></iframe>',
+            height=710
+        )
+
+    _render_gdoc()
 
     # ── EXPORT & DAILY UPDATE ──────────────────────────────
     st.divider()
