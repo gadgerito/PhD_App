@@ -36,7 +36,7 @@ if not check_password():
     st.stop()
 # -- MongoDB --
 @st.cache_resource
-def get_db():
+def get_mongo_db():
     client = MongoClient(
         st.secrets["mongo"]["uri"],
         username=st.secrets["mongo"]["username"],
@@ -44,7 +44,10 @@ def get_db():
         tls=True,
         tlsAllowInvalidCertificates=True
     )
-    return client["phd_app"]["progress"]
+    return client["phd_app"]
+
+def get_db():
+    return get_mongo_db()["progress"]
 
 # --- SERVE STATIC FOLDER ===
 st.markdown(
@@ -2306,7 +2309,68 @@ Format your response with these headers:
 
     st.divider()
 
-    # 10. Progress tracker
+    # 10. Committee Feedback
+    st.subheader("👥 Committee Feedback")
+
+    reviewer_filter = st.selectbox(
+        "Filter by Committee Member:",
+        ["All", "Emily", "Emma Tsui"],
+        key="reviewer_filter"
+    )
+
+    # Emily's feedback from lab_context
+    emily_feedback = [
+        {"reviewer": "Emily", "paper": "HBMC", "section": "Economic Impact", "feedback": ctx["comment"], "task_id": tid, "priority": "high", "action_type": "substantive"}
+        for tid, ctx in lab_context.items()
+    ]
+
+    # Emma's feedback from MongoDB
+    emma_feedback = []
+    try:
+        emma_feedback = list(get_mongo_db()["comps_feedback"].find({"reviewer": "Emma Tsui"}, {"_id": 0}))
+    except Exception as e:
+        st.warning(f"Could not load Emma's feedback: {e}")
+
+    all_committee_feedback = []
+    if reviewer_filter in ("All", "Emily"):
+        all_committee_feedback += emily_feedback
+    if reviewer_filter in ("All", "Emma Tsui"):
+        all_committee_feedback += emma_feedback
+
+    if all_committee_feedback:
+        pending = [f for f in all_committee_feedback if f.get("status", "pending") == "pending"]
+        done = [f for f in all_committee_feedback if f.get("status", "pending") != "pending"]
+        st.progress(len(done) / len(all_committee_feedback), text=f"{len(done)}/{len(all_committee_feedback)} addressed")
+
+        priority_color = {"high": "#e74c3c", "medium": "#f39c12", "low": "#27ae60", "none": "#888"}
+        type_icon = {"quick_fix": "⚡", "clarification": "💬", "substantive": "📝", "major": "🏗️", "none": "✅"}
+
+        for item in all_committee_feedback:
+            reviewer = item.get("reviewer", "Emily")
+            paper = item.get("paper", "")
+            section = item.get("section", "")
+            feedback_text = item.get("feedback", item.get("comment", ""))
+            priority = item.get("priority", "medium")
+            atype = item.get("action_type", "substantive")
+            status = item.get("status", "pending")
+            mins = item.get("estimated_minutes", "")
+            task_id = item.get("task_id", item.get("id", ""))
+            color = priority_color.get(priority, "#888")
+            icon = type_icon.get(atype, "📋")
+            reviewer_badge = "🔵 Emily" if reviewer == "Emily" else "🟣 Emma Tsui"
+            time_str = f" · ~{mins}min" if mins else ""
+            label = f"{icon} {reviewer_badge} | [{paper}] {section}{time_str}"
+
+            with st.expander(label, expanded=(priority == "high" and status == "pending")):
+                st.markdown(f"**Feedback:** {feedback_text}")
+                if task_id:
+                    st.caption(f"ID: {task_id} · {atype} · Priority: {priority}")
+    else:
+        st.info("No committee feedback found.")
+
+    st.divider()
+
+    # 11. Progress tracker
     st.subheader("📊 Review Progress")
     if 'reviewed_sections' not in st.session_state:
         st.session_state.reviewed_sections = set()
