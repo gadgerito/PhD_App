@@ -3236,11 +3236,11 @@ with t7:
     if gdoc_url:
         # Convert any sharing URL to an embeddable URL
         if "/edit" in gdoc_url:
-            embed_url = gdoc_url.split("/edit")[0] + "/edit?embedded=true&rm=minimal"
+            embed_url = gdoc_url.split("/edit")[0] + "/edit"
         elif "/view" in gdoc_url:
-            embed_url = gdoc_url.split("/view")[0] + "/edit?embedded=true&rm=minimal"
+            embed_url = gdoc_url.split("/view")[0] + "/edit"
         else:
-            embed_url = gdoc_url + "?embedded=true&rm=minimal"
+            embed_url = gdoc_url
 
         components.html(
             f'<iframe src="{embed_url}" width="100%" height="700" '
