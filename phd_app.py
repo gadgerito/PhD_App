@@ -39,6 +39,8 @@ if not check_password():
 def get_db():
     client = MongoClient(
         st.secrets["mongo"]["uri"],
+        username=st.secrets["mongo"]["username"],
+        password=st.secrets["mongo"]["password"],
         tls=True,
         tlsAllowInvalidCertificates=True
     )
