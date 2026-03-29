@@ -1452,7 +1452,8 @@ with t2:
                 saved_val = st.session_state.saved_responses.get(draft_key, "")
                 draft = st.text_area("", value=saved_val, key=f"textarea_{section}", height=150, label_visibility="collapsed")
 
-                if st.button(f"💾 Save Draft (+10 XP)", key=f"save_{section}"):
+                d_col1, d_col2 = st.columns(2)
+                if d_col1.button(f"💾 Save Draft (+10 XP)", key=f"save_{section}"):
                     st.session_state.saved_responses[draft_key] = draft
                     old_rank = get_rank(st.session_state.xp)
                     st.session_state.xp += 10
@@ -1463,6 +1464,81 @@ with t2:
                     save_all_progress()
                     st.success("Draft saved! ⚡")
                     st.rerun()
+
+                # ── AI Writing Coach ──
+                coach_key = f"coach_msgs_{section}"
+                if coach_key not in st.session_state:
+                    st.session_state[coach_key] = []
+
+                if d_col2.button("🦇 Ask AI Coach", key=f"coach_open_{section}"):
+                    st.session_state[f"coach_open_state_{section}"] = not st.session_state.get(f"coach_open_state_{section}", False)
+
+                if st.session_state.get(f"coach_open_state_{section}", False):
+                    st.markdown("---")
+                    st.markdown("**🦇 Writing Coach** — asking about this section's feedback")
+
+                    # Build feedback context string
+                    feedback_context = "\n".join(
+                        f"- [{item.get('reviewer','?')}] {item.get('feedback', item.get('comment',''))}"
+                        for item in all_sec_items
+                    )
+                    current_draft = st.session_state.saved_responses.get(draft_key, "")
+
+                    system_prompt = f"""You are an expert dissertation writing coach specializing in public health, aging, health policy, geriatrics, and disaster preparedness. Your student is a PhD candidate working on comprehensive exams.
+
+You are helping them respond to specific committee feedback for the section: **{section}**
+
+Committee feedback to address:
+{feedback_context}
+
+{"Current draft: " + current_draft if current_draft else "No draft yet."}
+
+Help them draft strong, doctoral-level responses to this feedback. Be direct and specific. Use Batman metaphors occasionally."""
+
+                    for msg in st.session_state[coach_key][-6:]:
+                        if msg["role"] == "user":
+                            st.markdown(
+                                f'<div style="background:#1a1a2e;border-left:3px solid #f1c40f;'
+                                f'border-radius:6px;padding:8px 12px;margin:4px 0;color:#f0e6c8;font-size:0.88rem;">'
+                                f'<b style="color:#f1c40f;">You:</b> {msg["content"]}</div>',
+                                unsafe_allow_html=True
+                            )
+                        else:
+                            st.markdown(
+                                f'<div style="background:#0d2b0d;border-left:3px solid #2ecc71;'
+                                f'border-radius:6px;padding:8px 12px;margin:4px 0;color:#d5f5e3;font-size:0.88rem;">'
+                                f'<b style="color:#2ecc71;">🦇 Coach:</b> {msg["content"]}</div>',
+                                unsafe_allow_html=True
+                            )
+
+                    coach_input = st.text_area(
+                        "Ask the coach:",
+                        placeholder="e.g. 'Help me draft a response to the resilience theory feedback' or 'How do I strengthen this argument?'",
+                        key=f"coach_input_{section}",
+                        height=80
+                    )
+
+                    cc1, cc2 = st.columns(2)
+                    if cc1.button("💬 Send", key=f"coach_send_{section}") and coach_input:
+                        st.session_state[coach_key].append({"role": "user", "content": coach_input})
+                        with st.spinner("🦇 Thinking..."):
+                            try:
+                                import anthropic
+                                client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+                                response = client.messages.create(
+                                    model="claude-sonnet-4-20250514",
+                                    max_tokens=600,
+                                    system=system_prompt,
+                                    messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state[coach_key][-10:]]
+                                )
+                                st.session_state[coach_key].append({"role": "assistant", "content": response.content[0].text})
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Coach error: {e}")
+
+                    if cc2.button("🗑️ Clear", key=f"coach_clear_{section}"):
+                        st.session_state[coach_key] = []
+                        st.rerun()
 
 # ── TAB 3: REWARDS & ANALYTICS ─────────────
 with t3:
