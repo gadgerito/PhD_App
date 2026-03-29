@@ -114,15 +114,19 @@ def _init_state():
         st.session_state.comps_loading = False
 
 
-def _send(user_text: str, client: Anthropic):
+def _send(user_text: str, client: Anthropic, context_prompt: str = ""):
     """Append user message, call API, append assistant reply."""
     st.session_state.comps_messages.append({"role": "user", "content": user_text})
     st.session_state.comps_loading = True
 
+    system_prompt = COMPS_SYSTEM_PROMPT
+    if context_prompt:
+        system_prompt += f"\n\n{context_prompt}"
+
     response = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=1024,
-        system=COMPS_SYSTEM_PROMPT,
+        system=system_prompt,
         messages=st.session_state.comps_messages,
     )
     reply = response.content[0].text
@@ -174,15 +178,42 @@ def render_floating_button():
             st.rerun()
 
 
-def render_comps_modal(client: Anthropic):
+def render_comps_modal(client: Anthropic, context_data: dict = None):
     """
     Renders the Comps Coach chat modal when comps_open is True.
-    Pass in your existing Anthropic client instance.
+    Pass in your existing Anthropic client instance and optionally context_data.
+
+    context_data can include:
+      - xp: current XP
+      - section_timers: {section: minutes} dict
+      - saved_responses: {key: response_text} dict
+      - last_worked_section: string
+      - last_worked_date: string
     """
     _init_state()
 
     if not st.session_state.comps_open:
         return
+
+    # Build context prompt from data
+    context_prompt = ""
+    if context_data:
+        ctx_parts = ["STUDENT'S CURRENT PROGRESS:"]
+        if context_data.get("xp"):
+            ctx_parts.append(f"- XP earned: {context_data['xp']}")
+        if context_data.get("last_worked_section"):
+            ctx_parts.append(f"- Last worked section: {context_data['last_worked_section']}")
+        if context_data.get("last_worked_date"):
+            ctx_parts.append(f"- Last worked date: {context_data['last_worked_date']}")
+        if context_data.get("section_timers"):
+            total_mins = sum(context_data["section_timers"].values())
+            ctx_parts.append(f"- Total focus time: {total_mins // 60}h {total_mins % 60}m")
+            for section, mins in sorted(context_data["section_timers"].items(), key=lambda x: x[1], reverse=True):
+                ctx_parts.append(f"  • {section}: {mins}m")
+        if context_data.get("saved_responses"):
+            ctx_parts.append(f"- Sections with draft responses: {len(context_data['saved_responses'])}")
+
+        context_prompt = "\n".join(ctx_parts) + "\n\nGive feedback on whether their current work aligns with comps requirements and deadlines."
 
     with st.container():
         st.markdown("""
@@ -269,7 +300,7 @@ def render_comps_modal(client: Anthropic):
             for i, (icon, label, prompt) in enumerate(QUICK_PROMPTS):
                 with cols[i % 4]:
                     if st.button(f"{icon} {label}", key=f"qp_{i}"):
-                        _send(prompt, client)
+                        _send(prompt, client, context_prompt)
                         st.rerun()
 
         # ── Chat history ──
@@ -304,7 +335,7 @@ def render_comps_modal(client: Anthropic):
         with btn_col:
             if st.button("Send", key="comps_send", type="primary"):
                 if user_input.strip():
-                    _send(user_input.strip(), client)
+                    _send(user_input.strip(), client, context_prompt)
                     st.rerun()
 
         # ── Clear chat ──

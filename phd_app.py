@@ -3518,5 +3518,12 @@ Today's drafts:
 # ── COMPS COACH FLOATING BUTTON ──────────────────────────────────────────────
 import anthropic as _anthropic
 _comps_client = _anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+_context_data = {
+    "xp": st.session_state.xp,
+    "section_timers": st.session_state.get("section_timers", {}),
+    "saved_responses": st.session_state.saved_responses,
+    "last_worked_section": st.session_state.get("last_worked_section", ""),
+    "last_worked_date": st.session_state.get("last_worked_date", ""),
+}
 render_floating_button()
-render_comps_modal(_comps_client)
+render_comps_modal(_comps_client, _context_data)
