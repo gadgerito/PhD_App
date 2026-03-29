@@ -3394,21 +3394,18 @@ with t7:
 
         st.divider()
 
-    # ── GOOGLE DOC EMBED ──────────────────────────────────
+    # ── GOOGLE DOC LINK ──────────────────────────────────
     st.divider()
-
-    @st.fragment
-    def _render_gdoc():
-        st.subheader("📝 Google Doc Editor")
-        _GDOC_URL = "https://docs.google.com/document/d/10VWt2EcFl8oBFwb_kdBl_5j3C1IAhOjdPcGzWmIlIhs/edit"
-        components.html(
-            f'<iframe src="{_GDOC_URL}" width="100%" height="700" '
-            f'style="border:1px solid #f1c40f;border-radius:8px;" '
-            f'allow="autoplay" frameborder="0"></iframe>',
-            height=710
-        )
-
-    _render_gdoc()
+    st.subheader("📝 Google Doc Editor")
+    _GDOC_URL = "https://docs.google.com/document/d/10VWt2EcFl8oBFwb_kdBl_5j3C1IAhOjdPcGzWmIlIhs/edit"
+    st.markdown(
+        f'<a href="{_GDOC_URL}" target="_blank" style="display:inline-block;padding:12px 28px;'
+        f'background:linear-gradient(135deg,#f1c40f,#e67e22);color:#1a1a2e;font-weight:bold;'
+        f'font-size:1.05rem;border-radius:8px;text-decoration:none;'
+        f'box-shadow:0 0 16px rgba(241,196,15,0.4);">🦇 Open Google Doc ↗</a>',
+        unsafe_allow_html=True
+    )
+    st.caption("Opens in a new tab so your doc stays stable while you work in the app.")
 
     # ── EXPORT & DAILY UPDATE ──────────────────────────────
     st.divider()
