@@ -73,6 +73,8 @@ def load_all_progress():
         d.get("claimed_rewards", []),
         d.get("custom_vault", {}),
         d.get("last_task_id", ""),
+        d.get("last_worked_section", ""),
+        d.get("last_worked_date", ""),
         d.get("notebook_entries", []),
         )
     except Exception as e:
@@ -93,6 +95,8 @@ def save_all_progress():
             "claimed_rewards": st.session_state.claimed_rewards,
             "custom_vault": st.session_state.custom_vault,
             "last_task_id": st.session_state.get("last_task_id", ""),
+            "last_worked_section": st.session_state.get("last_worked_section", ""),
+            "last_worked_date": st.session_state.get("last_worked_date", ""),
             "notebook_entries": st.session_state.get("notebook_entries", []),
         }
         db.replace_one({"_id": "main"}, data, upsert=True)
@@ -102,7 +106,7 @@ def save_all_progress():
 # 2. INITIALIZATION
 # ─────────────────────────────────────────────
 if 'initialized' not in st.session_state:
-    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, notebook = load_all_progress()
+    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook = load_all_progress()
     st.session_state.xp = xp
     st.session_state.completed_tasks = comp_tasks
     st.session_state.saved_responses = resps
@@ -117,6 +121,8 @@ if 'initialized' not in st.session_state:
         "💎 Synonyms": ["Elucidate (Show)", "Bolster (Help)", "Nexus (Link)"]
     }
     st.session_state.last_task_id = last_task
+    st.session_state.last_worked_section = last_worked_section
+    st.session_state.last_worked_date = last_worked_date
     st.session_state.initialized = True
 
 # Celebration state — read ONCE at top of render, then reset so they don't replay next run
@@ -1021,36 +1027,20 @@ with st.sidebar:
 
     st.divider()
     st.subheader("📓 Response Lab")
-    all_ids = sorted(list(set(
-        list(lab_context.keys()) +
-        [i['id'] for cat in master_tasks.values() for i in cat]
-    )))
-    last = st.session_state.get("last_task_id", "")
-    default_ix = all_ids.index(last) if last in all_ids else 0
-    sel_id = st.selectbox("Task ID:", all_ids, index=default_ix, key="sidebar_lab_id")
-    if st.session_state.get("last_task_id") != sel_id:
-        st.session_state.last_task_id = sel_id
-        save_all_progress()
-    ctx = lab_context.get(sel_id, {"comment": "Address feedback.", "prefill": ""})
-    st.warning(f"📝 {ctx['comment']}")
-    val = st.session_state.saved_responses.get(sel_id, ctx['prefill'])
-    draft = st.text_area(
-        "Your response:",
-        value=val,
-        key=f"sidebar_lab_{sel_id}",
-        height=200
-    )
-    #
-      # ← ADD THIS LINE HERE
-    if st.button("✅ Save Draft", use_container_width=True, key="save_draft_btn"):
-        current_text = st.session_state.get(f"sidebar_lab_{sel_id}", val)
-        if current_text:
-            st.session_state.saved_responses[sel_id] = current_text
-            save_all_progress()
-            st.success(f"Saved: {current_text[:50]}...")
-        else:
-            st.warning("Nothing to save — type your response first.")
-        st.rerun()
+    last_section = st.session_state.get("last_worked_section", "")
+    last_date = st.session_state.get("last_worked_date", "")
+    if last_section:
+        st.markdown(
+            f'<div style="background:#1a1a2e;border-left:3px solid #f1c40f;border-radius:6px;'
+            f'padding:10px 12px;color:#f0e6c8;font-size:0.83rem;">'
+            f'<b style="color:#f1c40f;">Last worked on:</b><br>'
+            f'{last_section}<br>'
+            f'<span style="color:#aaa;font-size:0.78rem;">🕐 {last_date}</span>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.caption("No drafts saved yet.")
 
     st.divider()
     if st.button("💾 Force Manual Save"):
@@ -1455,6 +1445,8 @@ with t2:
                 d_col1, d_col2 = st.columns(2)
                 if d_col1.button(f"💾 Save Draft (+10 XP)", key=f"save_{section}"):
                     st.session_state.saved_responses[draft_key] = draft
+                    st.session_state.last_worked_section = section
+                    st.session_state.last_worked_date = datetime.now().strftime("%b %d, %Y at %I:%M %p")
                     old_rank = get_rank(st.session_state.xp)
                     st.session_state.xp += 10
                     new_rank = get_rank(st.session_state.xp)
