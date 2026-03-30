@@ -3682,19 +3682,27 @@ with t8:
         # ── RACE THE CLOCK MODE ──────────────────────────────
         _race_active = st.session_state.get("race_active", False)
         _race_taunts = [
-            "Think you can outrun the clock, Dark Knight?",
-            "Gotham's burning. How fast can you work?",
-            "The clock is ticking. Show me what you've got.",
-            "Every second wasted is a second Gotham suffers.",
-            "You're not fast enough... or are you?",
+            ("Joker", "You wanna know how I got these scars? Procrastination, Batman. Tick tock."),
+            ("Bane", "You think deadlines are your ally? I was born in them, molded by them."),
+            ("Scarecrow", "What do you fear most, Dark Knight? An unfinished dissertation, perhaps?"),
+            ("Ra's al Ghul", "If you make yourself more than just a student... if you devote yourself to finishing... you become something else entirely."),
+            ("Mr. Freeze", "Allow me to break the ice — your comps are overdue."),
+            ("Riddler", "Riddle me this: how many feedback items can you crush before time runs out?"),
+            ("Catwoman", "You don't owe these committee members anything. But you're gonna give it to them anyway, aren't you?"),
+            ("Two-Face", "You either finish the comps, or you live long enough to see yourself ABD."),
+            ("Poison Ivy", "Every revision you skip lets the weeds grow back stronger, Dark Knight."),
+            ("Penguin", "Time is money, Batman — and you're running out of both."),
+            ("Deathstroke", "I've been watching you stall. Let's see if you can actually execute."),
+            ("Hugo Strange", "I know your secret, Batman. You've been avoiding the substantive edits."),
         ]
+        _villain_name, _villain_quote = random.choice(_race_taunts)
 
         if not _race_active:
             with st.expander("🏎️ **RACE THE CLOCK** — Blitz through feedback for bonus XP", expanded=False):
                 st.markdown(
                     '<div style="background:#1a1a2e;border-left:4px solid #e74c3c;border-radius:8px;'
                     'padding:14px;color:#f0e6c8;margin-bottom:12px;">'
-                    f'<b style="color:#e74c3c;">🦹 Villain:</b> <i>"{random.choice(_race_taunts)}"</i>'
+                    f'<b style="color:#e74c3c;">🦹 {_villain_name}:</b> <i>"{_villain_quote}"</i>'
                     '</div>',
                     unsafe_allow_html=True
                 )
@@ -3739,19 +3747,27 @@ with t8:
             _race_best = st.session_state.get("race_best_streak", 0)
             _race_pct = _race_completed / _race_target_count if _race_target_count else 0
 
-            # Determine urgency color
+            # Determine urgency color + villain taunt
             if _race_secs <= 0:
                 _clock_color = "#e74c3c"
                 _clock_emoji = "💀"
+                _live_taunt = "Joker: HA HA HA! Time's up, Bats!"
+            elif _race_secs < 60:
+                _clock_color = "#e74c3c"
+                _clock_emoji = "🔥"
+                _live_taunt = "Bane: Now you have my permission to panic."
             elif _race_secs < 120:
                 _clock_color = "#e74c3c"
                 _clock_emoji = "🔥"
+                _live_taunt = "Scarecrow: I can smell the fear. Two minutes left..."
             elif _race_secs < 300:
                 _clock_color = "#f39c12"
                 _clock_emoji = "⚡"
+                _live_taunt = "Riddler: Can you solve the remaining items in time? I doubt it."
             else:
                 _clock_color = "#2ecc71"
                 _clock_emoji = "🏎️"
+                _live_taunt = "Alfred: Steady pace, sir. You've got this."
 
             # Streak display
             _streak_text = ""
@@ -3771,6 +3787,8 @@ with t8:
                 f'</div>'
                 f'<div style="font-size:0.85rem;color:#aaa;">Best streak: {_race_best}</div>'
                 f'</div>'
+                f'<div style="margin-top:10px;font-style:italic;font-size:0.9rem;color:{_clock_color};">'
+                f'🦹 {_live_taunt}</div>'
                 f'</div>',
                 unsafe_allow_html=True
             )
@@ -3782,6 +3800,14 @@ with t8:
                 _time_bonus = (_race_secs // 60) * 5  # 5 XP per minute remaining
                 _streak_bonus = _race_best * 5  # 5 XP per best streak
                 _total_bonus = _bonus + _time_bonus + _streak_bonus
+                _win_quotes = [
+                    ("Alfred", "Well done, sir. I took the liberty of preparing a celebration."),
+                    ("Commissioner Gordon", "You did it. Gotham — and your committee — thank you."),
+                    ("Lucius Fox", "I don't think even I could have engineered that kind of efficiency."),
+                    ("Batman", "I'm whatever Gotham needs me to be. Tonight, that was fast."),
+                    ("Catwoman", "Not bad, Dark Knight. Not bad at all."),
+                ]
+                _win_name, _win_quote = random.choice(_win_quotes)
                 st.markdown(
                     f'<div style="background:linear-gradient(135deg,#0a2a0a,#0a3a0a);'
                     f'border:2px solid #2ecc71;border-radius:12px;padding:20px;'
@@ -3791,6 +3817,8 @@ with t8:
                     f'Clock bonus: +{_bonus} XP · Time left bonus: +{_time_bonus} XP · Streak bonus: +{_streak_bonus} XP</div>'
                     f'<div style="font-size:1.5rem;color:#f1c40f;margin-top:8px;font-weight:bold;">'
                     f'Total bonus: +{_total_bonus} XP</div>'
+                    f'<div style="margin-top:12px;font-style:italic;font-size:0.95rem;color:#a0d8b0;">'
+                    f'🦇 {_win_name}: "{_win_quote}"</div>'
                     f'</div>',
                     unsafe_allow_html=True
                 )
@@ -3803,6 +3831,15 @@ with t8:
                     st.rerun()
             elif _race_secs <= 0:
                 _partial = _race_completed * 5  # consolation XP
+                _lose_quotes = [
+                    ("Bane", "And when your edits are ashes, you have my permission to cry."),
+                    ("Joker", "See, I'm not a monster. I'm just ahead of the curve. Unlike you."),
+                    ("Ra's al Ghul", "But you are not done yet. Get up. Why do we fall, Bruce?"),
+                    ("Scarecrow", "Your greatest fear has been realized. But fear can be a teacher."),
+                    ("Alfred", "Why do we fall, sir? So that we can learn to pick ourselves up."),
+                    ("Batman", "It's not who I am underneath, but what I do that defines me."),
+                ]
+                _lose_name, _lose_quote = random.choice(_lose_quotes)
                 st.markdown(
                     f'<div style="background:linear-gradient(135deg,#2a0a0a,#3a0a0a);'
                     f'border:2px solid #e74c3c;border-radius:12px;padding:20px;'
@@ -3811,8 +3848,8 @@ with t8:
                     f'<div style="font-size:1rem;margin-top:8px;">'
                     f'You completed {_race_completed}/{_race_target_count}. '
                     f'Consolation: +{_partial} XP</div>'
-                    f'<div style="font-size:0.9rem;margin-top:4px;color:#aaa;">'
-                    f'<i>"It\'s not who I am underneath, but what I do that defines me."</i></div>'
+                    f'<div style="margin-top:12px;font-style:italic;font-size:0.95rem;color:#d4a0a0;">'
+                    f'🦹 {_lose_name}: "{_lose_quote}"</div>'
                     f'</div>',
                     unsafe_allow_html=True
                 )
