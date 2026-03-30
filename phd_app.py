@@ -967,6 +967,16 @@ with st.sidebar:
     st.metric("Total XP", st.session_state.xp)
     render_rank_badge(st.session_state.xp)
 
+    with st.expander("➕ Add XP Manually"):
+        _manual_xp = st.number_input("XP to add", min_value=1, max_value=500, value=10, step=5, key="manual_xp_input")
+        _manual_reason = st.text_input("Reason (optional)", placeholder="e.g. Revised intro paragraph", key="manual_xp_reason")
+        if st.button("Add XP", key="manual_xp_btn", type="primary"):
+            st.session_state.xp += _manual_xp
+            save_all_progress()
+            _reason_msg = f" — {_manual_reason}" if _manual_reason.strip() else ""
+            st.toast(f"🦇 +{_manual_xp} XP added{_reason_msg}!", icon="🦇")
+            st.rerun()
+
     with st.expander("⚠️ Reset XP"):
         st.warning("This will set your XP back to 0. This cannot be undone.")
         if st.button("Reset XP to 0", type="primary"):
