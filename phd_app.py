@@ -1420,28 +1420,28 @@ drawClock();
     st.divider()
 
     # ── Focus Beats ──
-st.subheader("🎵 Focus Beats")
+    st.subheader("🎵 Focus Beats")
 
-# Updated to standard YouTube links for better compatibility with st.video()
-BEATS = {
-    "🌙 Gotham Night (Lo-Fi)":   "https://www.youtube.com/watch?v=jfKfPfyJRdk",
-    "🌧️ Rain on Gotham":         "https://www.youtube.com/watch?v=mPZkdNFkNps",
-    "🔥 Dark Ambient":           "https://www.youtube.com/watch?v=S_MOd40zlYU",
-    "📚 Study Jazz":             "https://www.youtube.com/watch?v=HuFYqnbVbzY",
-    "🌊 White Noise":            "https://www.youtube.com/watch?v=nMfPqeZjc2c",
-    "🦇 Cinematic Batman Vibes": "https://www.youtube.com/watch?v=ordvJNeMjPI",
-}
+    # Updated to standard YouTube links for better compatibility with st.video()
+    BEATS = {
+        "🌙 Gotham Night (Lo-Fi)":   "https://www.youtube.com/watch?v=jfKfPfyJRdk",
+        "🌧️ Rain on Gotham":         "https://www.youtube.com/watch?v=mPZkdNFkNps",
+        "🔥 Dark Ambient":           "https://www.youtube.com/watch?v=S_MOd40zlYU",
+        "📚 Study Jazz":             "https://www.youtube.com/watch?v=HuFYqnbVbzY",
+        "🌊 White Noise":            "https://www.youtube.com/watch?v=nMfPqeZjc2c",
+        "🦇 Cinematic Batman Vibes": "https://www.youtube.com/watch?v=ordvJNeMjPI",
+    }
 
-# 1. Create a dropdown menu for the user to select a track
-selected_track = st.selectbox("Choose a track to play:", options=list(BEATS.keys()))
+    # 1. Create a dropdown menu for the user to select a track
+    selected_track = st.selectbox("Choose a track to play:", options=list(BEATS.keys()))
 
-# 2. Get the URL for the selected track
-video_url = BEATS[selected_track]
+    # 2. Get the URL for the selected track
+    video_url = BEATS[selected_track]
 
-# 3. Embed and play the video directly in the app
-st.video(video_url)
-
+    # 3. Embed and play the video directly in the app
+    st.video(video_url)
     st.divider()
+
     st.subheader("🦇 Dissertation Coach")
 
     # ── Build full ordered section list ──
