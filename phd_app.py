@@ -1008,22 +1008,26 @@ with st.sidebar:
         if i['id'] not in st.session_state.completed_tasks
     ]
     selected_mission = st.selectbox("🎯 Current Focus Task:", ["General Deep Work"] + all_tasks_flat)
+    # Sync selectbox to active_mission (EKT tab can also set this directly)
+    if not st.session_state.get('timer_running'):
+        st.session_state.active_mission = selected_mission
 
     @st.fragment(run_every="1s")
     def sidebar_pomodoro():
+        _mission = st.session_state.get("active_mission", "General Deep Work")
         if st.session_state.get('timer_running') and st.session_state.get('target_time'):
             if not st.session_state.get('timer_paused'):
                 remaining = st.session_state.target_time - datetime.now()
                 total_seconds = int(remaining.total_seconds())
                 if total_seconds > 0:
                     mins, secs = divmod(total_seconds, 60)
-                    label = f"⏳ Slaying: {selected_mission.split(':')[0]}"
+                    label = f"⏳ Slaying: {_mission.split(':')[0]}"
                     if mins < 5:
-                        label = f"🔥 FINAL PUSH: {selected_mission.split(':')[0]}"
+                        label = f"🔥 FINAL PUSH: {_mission.split(':')[0]}"
                     st.metric(label, f"{mins:02d}:{secs:02d}")
                 else:
                     st.session_state.timer_running = False
-                    task_id = selected_mission.split(":")[0]
+                    task_id = _mission.split(":")[0]
                     st.session_state.task_timers[task_id] = \
                         st.session_state.task_timers.get(task_id, 0) + 25
                     st.session_state.xp += 25
@@ -1053,7 +1057,7 @@ with st.sidebar:
                 if st.session_state.get('target_time'):
                     elapsed_mins = int((datetime.now() - (st.session_state.target_time - timedelta(minutes=25))).total_seconds() / 60)
                     if elapsed_mins > 0:
-                        task_id = selected_mission.split(":")[0]
+                        task_id = _mission.split(":")[0]
                         st.session_state.task_timers[task_id] = \
                             st.session_state.task_timers.get(task_id, 0) + elapsed_mins
                         st.session_state.xp += elapsed_mins
@@ -3745,7 +3749,7 @@ with t8:
             # Action buttons
             if not _is_done:
                 st.write("")
-                _act_col1, _act_col2 = st.columns(2)
+                _act_col1, _act_col2, _act_col3 = st.columns(3)
 
                 if _act_col1.button("✅ Mark Done — Earn XP!", key=f"ekt_done_{_item['id']}",
                                      type="primary", use_container_width=True):
@@ -3765,7 +3769,28 @@ with t8:
                     except Exception as e:
                         st.error(f"Failed to update: {e}")
 
-                if _act_col2.button("⏭️ Skip for Now", key=f"ekt_skip_{_item['id']}",
+                # Focus timer button
+                _ekt_mission = f"{_item['id']}: {_item.get('section', '')} ({_item.get('paper', '')})"
+                _timer_active = st.session_state.get('timer_running', False)
+                _on_this = st.session_state.get('active_mission', '') == _ekt_mission
+                if _timer_active and _on_this:
+                    _act_col2.markdown("⏳ **Timer running...**")
+                elif not _timer_active:
+                    _est = _item.get("estimated_minutes", 25)
+                    _timer_mins = max(_est, 10)  # minimum 10min sprint
+                    if _act_col2.button(f"🚀 {_timer_mins}m Sprint", key=f"ekt_timer_{_item['id']}",
+                                         use_container_width=True):
+                        st.session_state.active_mission = _ekt_mission
+                        st.session_state.target_time = datetime.now() + timedelta(minutes=_timer_mins)
+                        st.session_state.timer_running = True
+                        st.session_state.timer_paused = False
+                        save_all_progress()
+                        st.toast(f"🚀 {_timer_mins}m sprint started for {_item['id']}!", icon="🦇")
+                        st.rerun()
+                else:
+                    _act_col2.markdown("⏳ *Timer on another task*")
+
+                if _act_col3.button("⏭️ Skip", key=f"ekt_skip_{_item['id']}",
                                      use_container_width=True):
                     st.session_state.ekt_current_idx = (_idx + 1) % len(_filtered)
                     st.rerun()
