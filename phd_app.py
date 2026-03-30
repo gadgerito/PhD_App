@@ -1534,6 +1534,7 @@ drawClock();
             st.session_state.walkthrough_idx -= 1
             st.session_state.coach_messages = []
             st.session_state.walkthrough_introduced = -1
+            st.session_state.ekt_active_item = {}
             new_sec = _wt_sections[st.session_state.walkthrough_idx]
             st.session_state.focus_section_select = new_sec
             _sync_task_to_section(new_sec)
@@ -1542,6 +1543,7 @@ drawClock();
             st.session_state.walkthrough_idx += 1
             st.session_state.coach_messages = []
             st.session_state.walkthrough_introduced = -1
+            st.session_state.ekt_active_item = {}
             new_sec = _wt_sections[st.session_state.walkthrough_idx]
             st.session_state.focus_section_select = new_sec
             _sync_task_to_section(new_sec)
@@ -1551,42 +1553,62 @@ drawClock();
             st.session_state.coach_messages = []
             st.rerun()
 
-        # Auto-generate intro when entering a new section
+        # Auto-generate intro when entering a new section or EKT item
         if st.session_state.walkthrough_introduced != wt_idx:
             with st.spinner("🦇 Coach is preparing your briefing..."):
                 try:
                     import anthropic
                     client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-                    _fb_items = [
-                        {"reviewer": "Emily", "feedback": c["comment"],
-                         "priority": "high", "action_type": "substantive"}
-                        for tid, c in lab_context.items()
-                        if current_wt_sec in task_to_sections.get(tid, [])
-                    ]
-                    try:
-                        _fb_items += list(get_mongo_db()["comps_feedback"].find(
-                            {"section": current_wt_sec}, {"_id": 0}
-                        ))
-                    except:
-                        pass
-                    _fb_ctx = "\n".join(
-                        f"- [{i.get('reviewer','?')}] ({i.get('priority','?')} priority, ~{i.get('estimated_minutes','?')}min) {i.get('feedback','')}"
-                        for i in _fb_items
-                    ) or "No specific feedback items found."
-                    _draft = st.session_state.saved_responses.get(f"focus_draft_{current_wt_sec}", "")
+                    _ekt_item = st.session_state.get("ekt_active_item", {})
 
-                    _draft_preview = ("Their current draft:\n" + _draft[:300]) if _draft else "No draft written yet."
-                    _intro_prompt = (
-                        f"You are a dissertation writing coach walking a PhD student through their comprehensive exam revisions section by section. "
-                        f"They have their Google Doc open and are ready to edit.\n\n"
-                        f"Section: **{current_wt_sec}** ({wt_idx+1} of {len(_wt_sections)})\n\n"
-                        f"Committee feedback:\n{_fb_ctx}\n\n"
-                        f"{_draft_preview}\n\n"
-                        f"In 3-5 sentences: introduce this section, highlight the 1-2 most important feedback items to tackle first, "
-                        f"and give one concrete suggestion for how to start. Be direct and doctoral-level. "
-                        f"End with a Batman-themed encouragement. Keep it brief — this is a sidebar."
-                    )
+                    if _ekt_item and _ekt_item.get("feedback"):
+                        # EKT item mode — brief on the specific task in front of the student
+                        _intro_prompt = (
+                            f"You are a dissertation writing coach. Your student is working through their "
+                            f"committee's hit list and is currently on this specific feedback item:\n\n"
+                            f"ID: {_ekt_item.get('id', '?')}\n"
+                            f"Section: {_ekt_item.get('section', '?')}\n"
+                            f"Paper: {_ekt_item.get('paper', '?')}\n"
+                            f"Type: {_ekt_item.get('action_type', '?')} | Priority: {_ekt_item.get('priority', '?')} | "
+                            f"Est. time: ~{_ekt_item.get('estimated_minutes', '?')} min\n"
+                            f"Reviewer: {_ekt_item.get('reviewer', '?')}\n\n"
+                            f"Feedback comment:\n\"{_ekt_item.get('feedback', '')}\"\n\n"
+                            f"In 3-5 sentences: explain exactly what this feedback is asking for, "
+                            f"give one concrete first step to address it, and note any watch-outs. "
+                            f"Be direct and doctoral-level. End with a Batman-themed encouragement. "
+                            f"Keep it brief — this is a sidebar."
+                        )
+                    else:
+                        # Section walkthrough mode
+                        _fb_items = [
+                            {"reviewer": "Emily", "feedback": c["comment"],
+                             "priority": "high", "action_type": "substantive"}
+                            for tid, c in lab_context.items()
+                            if current_wt_sec in task_to_sections.get(tid, [])
+                        ]
+                        try:
+                            _fb_items += list(get_mongo_db()["comps_feedback"].find(
+                                {"section": current_wt_sec}, {"_id": 0}
+                            ))
+                        except:
+                            pass
+                        _fb_ctx = "\n".join(
+                            f"- [{i.get('reviewer','?')}] ({i.get('priority','?')} priority, ~{i.get('estimated_minutes','?')}min) {i.get('feedback','')}"
+                            for i in _fb_items
+                        ) or "No specific feedback items found."
+                        _draft = st.session_state.saved_responses.get(f"focus_draft_{current_wt_sec}", "")
+                        _draft_preview = ("Their current draft:\n" + _draft[:300]) if _draft else "No draft written yet."
+                        _intro_prompt = (
+                            f"You are a dissertation writing coach walking a PhD student through their comprehensive exam revisions section by section. "
+                            f"They have their Google Doc open and are ready to edit.\n\n"
+                            f"Section: **{current_wt_sec}** ({wt_idx+1} of {len(_wt_sections)})\n\n"
+                            f"Committee feedback:\n{_fb_ctx}\n\n"
+                            f"{_draft_preview}\n\n"
+                            f"In 3-5 sentences: introduce this section, highlight the 1-2 most important feedback items to tackle first, "
+                            f"and give one concrete suggestion for how to start. Be direct and doctoral-level. "
+                            f"End with a Batman-themed encouragement. Keep it brief — this is a sidebar."
+                        )
                     intro_response = client.messages.create(
                         model="claude-sonnet-4-20250514",
                         max_tokens=400,
@@ -4010,8 +4032,9 @@ with t8:
 
             # Navigation
             def _sync_coach_to_ekt_item(item):
-                """Sync sidebar walkthrough index to the given EKT item's section."""
+                """Sync sidebar walkthrough index and active item to the given EKT item."""
                 sec = item.get("section", "")
+                st.session_state.ekt_active_item = item  # store full item for coach prompt
                 if not sec:
                     return
                 _all_secs = list(SECTION_TASKS.keys())
@@ -4026,6 +4049,10 @@ with t8:
                     st.session_state.walkthrough_idx = _all_secs.index(sec)
                     st.session_state.walkthrough_introduced = -1
                     st.session_state.coach_messages = []
+
+            # Always keep ekt_active_item pointing at the currently displayed item
+            if st.session_state.get("ekt_active_item", {}).get("id") != _item.get("id"):
+                st.session_state.ekt_active_item = _item
 
             _nav_col1, _nav_col2, _nav_col3 = st.columns([1, 4, 1])
             if _nav_col1.button("⬅️ Prev", key="ekt_prev", use_container_width=True):
