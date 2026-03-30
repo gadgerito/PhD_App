@@ -4008,30 +4008,12 @@ with t8:
             _idx = st.session_state.ekt_current_idx % len(_filtered)
             _item = _filtered[_idx]
 
-            # Sync coach to currently visible item (on load/filter change)
-            _item_sec = _item.get("section", "")
-            if _item_sec and st.session_state.get("focus_section_select") != _item_sec:
-                st.session_state.focus_section_select = _item_sec
-                _all_secs_ekt = list(SECTION_TASKS.keys())
-                try:
-                    for _s in list(get_mongo_db()["comps_feedback"].distinct("section")):
-                        if _s not in _all_secs_ekt:
-                            _all_secs_ekt.append(_s)
-                except:
-                    pass
-                if _item_sec in _all_secs_ekt:
-                    st.session_state.walkthrough_idx = _all_secs_ekt.index(_item_sec)
-                    st.session_state.walkthrough_introduced = -1
-                    st.session_state.coach_messages = []
-
             # Navigation
             def _sync_coach_to_ekt_item(item):
-                """Sync sidebar walkthrough and focus section to the given EKT item's section."""
+                """Sync sidebar walkthrough index to the given EKT item's section."""
                 sec = item.get("section", "")
                 if not sec:
                     return
-                st.session_state.focus_section_select = sec
-                # Find section index in walkthrough list (SECTION_TASKS keys + any extras)
                 _all_secs = list(SECTION_TASKS.keys())
                 try:
                     _extra = list(get_mongo_db()["comps_feedback"].distinct("section"))
