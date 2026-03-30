@@ -1420,24 +1420,26 @@ drawClock();
     st.divider()
 
     # ── Focus Beats ──
-    st.subheader("🎵 Focus Beats")
-    BEATS = {
-        "🌙 Gotham Night (Lo-Fi)":   "https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=0",
-        "🌧️ Rain on Gotham":         "https://www.youtube.com/embed/mPZkdNFkNps?autoplay=0",
-        "🔥 Dark Ambient":           "https://www.youtube.com/embed/S_MOd40zlYU?autoplay=0",
-        "📚 Study Jazz":             "https://www.youtube.com/embed/HuFYqnbVbzY?autoplay=0",
-        "🌊 White Noise":            "https://www.youtube.com/embed/nMfPqeZjc2c?autoplay=0",
-        "🦇 Cinematic Batman Vibes": "https://www.youtube.com/watch?v=ordvJNeMjPI",
-    }
-    selected_beat = st.selectbox("Choose your vibe:", list(BEATS.keys()), key="focus_beats_select")
-    beat_url = BEATS[selected_beat]
-    components.html(
-        f'<iframe width="100%" height="80" src="{beat_url}" '
-        f'frameborder="0" allow="autoplay; encrypted-media" allowfullscreen '
-        f'style="border-radius:8px;border:1px solid #f1c40f33;"></iframe>',
-        height=90
-    )
-    st.caption("▶️ Click play inside the player to start.")
+st.subheader("🎵 Focus Beats")
+
+# Updated to standard YouTube links for better compatibility with st.video()
+BEATS = {
+    "🌙 Gotham Night (Lo-Fi)":   "https://www.youtube.com/watch?v=jfKfPfyJRdk",
+    "🌧️ Rain on Gotham":         "https://www.youtube.com/watch?v=mPZkdNFkNps",
+    "🔥 Dark Ambient":           "https://www.youtube.com/watch?v=S_MOd40zlYU",
+    "📚 Study Jazz":             "https://www.youtube.com/watch?v=HuFYqnbVbzY",
+    "🌊 White Noise":            "https://www.youtube.com/watch?v=nMfPqeZjc2c",
+    "🦇 Cinematic Batman Vibes": "https://www.youtube.com/watch?v=ordvJNeMjPI",
+}
+
+# 1. Create a dropdown menu for the user to select a track
+selected_track = st.selectbox("Choose a track to play:", options=list(BEATS.keys()))
+
+# 2. Get the URL for the selected track
+video_url = BEATS[selected_track]
+
+# 3. Embed and play the video directly in the app
+st.video(video_url)
 
     st.divider()
     st.subheader("🦇 Dissertation Coach")
