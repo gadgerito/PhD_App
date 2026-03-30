@@ -1465,7 +1465,7 @@ drawClock();
     st.video(video_url)
     st.divider()
 
-    st.subheader("🦇 Dissertation Coach")
+    st.subheader("🐦 Robin — Your Dissertation Sidekick")
 
     # ── Build full ordered section list ──
     _wt_sections = list(SECTION_TASKS.keys())
@@ -1543,7 +1543,7 @@ drawClock();
 
         # Auto-generate intro when entering a new section or EKT item
         if st.session_state.walkthrough_introduced != wt_idx:
-            with st.spinner("🦇 Coach is preparing your briefing..."):
+            with st.spinner("🐦 Robin is preparing your mission briefing..."):
                 try:
                     import anthropic
                     client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
@@ -1553,8 +1553,10 @@ drawClock();
                     if _ekt_item and _ekt_item.get("feedback"):
                         # EKT item mode — brief on the specific task in front of the student
                         _intro_prompt = (
-                            f"You are a dissertation writing coach. Your student is working through their "
-                            f"committee's hit list and is currently on this specific feedback item:\n\n"
+                            f"You are Robin — loyal sidekick to Batman, who is a PhD student fighting to finish their dissertation. "
+                            f"You are smart, eager, and fully briefed on the mission. You speak with energy and loyalty — "
+                            f"you believe in Batman completely and your job is to keep them moving forward. "
+                            f"Batman is currently facing this specific committee feedback item:\n\n"
                             f"ID: {_ekt_item.get('id', '?')}\n"
                             f"Section: {_ekt_item.get('section', '?')}\n"
                             f"Paper: {_ekt_item.get('paper', '?')}\n"
@@ -1562,10 +1564,9 @@ drawClock();
                             f"Est. time: ~{_ekt_item.get('estimated_minutes', '?')} min\n"
                             f"Reviewer: {_ekt_item.get('reviewer', '?')}\n\n"
                             f"Feedback comment:\n\"{_ekt_item.get('feedback', '')}\"\n\n"
-                            f"In 3-5 sentences: explain exactly what this feedback is asking for, "
-                            f"give one concrete first step to address it, and note any watch-outs. "
-                            f"Be direct and doctoral-level. End with a Batman-themed encouragement. "
-                            f"Keep it brief — this is a sidebar."
+                            f"Brief Batman in 3-5 sentences: explain exactly what this feedback is asking for, "
+                            f"give one concrete first step to address it, and flag any watch-outs. "
+                            f"Sound like Robin reporting to Batman — sharp, loyal, ready for action. Keep it brief — this is a sidebar."
                         )
                     else:
                         # Section walkthrough mode
@@ -1588,14 +1589,15 @@ drawClock();
                         _draft = st.session_state.saved_responses.get(f"focus_draft_{current_wt_sec}", "")
                         _draft_preview = ("Their current draft:\n" + _draft[:300]) if _draft else "No draft written yet."
                         _intro_prompt = (
-                            f"You are a dissertation writing coach walking a PhD student through their comprehensive exam revisions section by section. "
-                            f"They have their Google Doc open and are ready to edit.\n\n"
+                            f"You are Robin — loyal sidekick to Batman, who is a PhD student fighting to finish their dissertation. "
+                            f"You are smart, eager, fully briefed on every section, and completely devoted to helping Batman succeed. "
+                            f"Batman has just arrived at a new section of their comps revisions. Brief them like a mission report.\n\n"
                             f"Section: **{current_wt_sec}** ({wt_idx+1} of {len(_wt_sections)})\n\n"
                             f"Committee feedback:\n{_fb_ctx}\n\n"
                             f"{_draft_preview}\n\n"
-                            f"In 3-5 sentences: introduce this section, highlight the 1-2 most important feedback items to tackle first, "
-                            f"and give one concrete suggestion for how to start. Be direct and doctoral-level. "
-                            f"End with a Batman-themed encouragement. Keep it brief — this is a sidebar."
+                            f"In 3-5 sentences: introduce this section, call out the 1-2 most critical feedback items to hit first, "
+                            f"and give one concrete first move. Sound like Robin reporting to Batman — sharp, loyal, ready. "
+                            f"Keep it brief — this is a sidebar."
                         )
                     intro_response = client.messages.create(
                         model="claude-sonnet-4-20250514",
@@ -1623,12 +1625,12 @@ drawClock();
             st.markdown(
                 f'<div style="background:#0d2b0d;border-left:3px solid #2ecc71;'
                 f'border-radius:6px;padding:8px 12px;color:#d5f5e3;'
-                f'font-size:0.82rem;margin:4px 0;">🦇 {msg["content"]}</div>',
+                f'font-size:0.82rem;margin:4px 0;">🐦 {msg["content"]}</div>',
                 unsafe_allow_html=True
             )
 
     coach_input = st.text_area(
-        "Ask your coach:",
+        "Message Robin:",
         placeholder="Ask a follow-up, paste a paragraph to review, or say 'next' to move on...",
         key="coach_input",
         height=80
@@ -1639,7 +1641,7 @@ drawClock();
     if coach_col1.button("💬 Send", use_container_width=True, key="coach_send"):
         if coach_input:
             st.session_state.coach_messages.append({"role": "user", "content": coach_input})
-            with st.spinner("🦇 Thinking..."):
+            with st.spinner("🐦 Robin is on it..."):
                 try:
                     import anthropic
                     client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
@@ -1657,17 +1659,26 @@ drawClock();
                     _fb_ctx = "\n".join(f"- [{i.get('reviewer','?')}] {i.get('feedback','')}" for i in _fb_items)
                     _draft = st.session_state.saved_responses.get(f"focus_draft_{_focus_sec}", "")
 
-                    system_prompt = f"""You are an expert dissertation writing coach walking a PhD student through their comprehensive exam revisions. They have their Google Doc open.
+                    _ekt_item_chat = st.session_state.get("ekt_active_item", {})
+                    _item_ctx = ""
+                    if _ekt_item_chat and _ekt_item_chat.get("feedback"):
+                        _item_ctx = (
+                            f"\nActive hit list item: {_ekt_item_chat.get('id','?')} — {_ekt_item_chat.get('section','?')} "
+                            f"({_ekt_item_chat.get('paper','?')}, {_ekt_item_chat.get('action_type','?')})\n"
+                            f"Feedback: \"{_ekt_item_chat.get('feedback','')}\"\n"
+                        )
 
-{"GUIDED WALKTHROUGH MODE — Section " + str(wt_idx+1) + " of " + str(len(_wt_sections)) if wt_active else ""}
+                    system_prompt = f"""You are Robin — loyal sidekick to Batman, who is a PhD student fighting to finish their dissertation. You are smart, sharp, and completely devoted to helping Batman win. You speak with energy and loyalty. You know every section, every piece of committee feedback, and every deadline. Your job is to keep Batman moving forward — no excuses, no stalling, just action.
+
+{"MISSION BRIEFING — Section " + str(wt_idx+1) + " of " + str(len(_wt_sections)) if wt_active else ""}
 Current section: **{_focus_sec}**
-
+{_item_ctx}
 Committee feedback:
 {_fb_ctx if _fb_ctx else "None loaded."}
 
-{"Student's draft:\n" + _draft if _draft else "No draft yet."}
+{"Batman's current draft:\n" + _draft if _draft else "No draft yet."}
 
-Be direct, specific, doctoral-level. Keep responses concise — this is a sidebar. Use Batman metaphors occasionally."""
+Be direct, specific, doctoral-level. Keep responses concise — this is a sidebar. Sound like Robin: loyal, energetic, mission-focused."""
 
                     response = client.messages.create(
                         model="claude-sonnet-4-20250514",
