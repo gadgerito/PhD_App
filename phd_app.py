@@ -174,7 +174,7 @@ st.session_state.pomodoro_done   = False
 st.session_state.reward_claimed  = ''
 
 # Play audio if flagged
-if st.session_state.get('play_audio') or st.session_state.get('celebration_xp', 0) > 0:
+if st.session_state.get('play_audio') or celebration_xp > 0:
     audio_b64 = get_audio_b64()
     components.html(
         f"""
