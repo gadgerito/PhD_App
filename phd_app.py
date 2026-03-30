@@ -1427,7 +1427,7 @@ drawClock();
         "🔥 Dark Ambient":           "https://www.youtube.com/embed/S_MOd40zlYU?autoplay=0",
         "📚 Study Jazz":             "https://www.youtube.com/embed/HuFYqnbVbzY?autoplay=0",
         "🌊 White Noise":            "https://www.youtube.com/embed/nMfPqeZjc2c?autoplay=0",
-        "🦇 Cinematic Batman Vibes": "https://www.youtube.com/embed/RR3MxBOGCGE?autoplay=0",
+        "🦇 Cinematic Batman Vibes": "https://www.youtube.com/watch?v=ordvJNeMjPI",
     }
     selected_beat = st.selectbox("Choose your vibe:", list(BEATS.keys()), key="focus_beats_select")
     beat_url = BEATS[selected_beat]
