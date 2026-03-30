@@ -3721,6 +3721,7 @@ with t8:
             _xp_reward = _xp_per_type.get(_item.get("action_type", ""), 10)
             _is_done = _item.get("status") != "pending"
 
+            _done_badge = '<div style="margin-top:12px;padding:8px 14px;background:#27ae6033;border-radius:8px;color:#2ecc71;font-weight:bold;">✅ COMPLETED</div>' if _is_done else ''
             st.markdown(
                 f'<div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);'
                 f'border-left:4px solid {_p_color};border-radius:12px;padding:20px;'
@@ -3736,7 +3737,7 @@ with t8:
                 f' · <span style="color:#f1c40f;font-weight:bold;">+{_xp_reward} XP</span></div>'
                 f'<hr style="border-color:#333;margin:12px 0;">'
                 f'<div style="font-size:1.05rem;line-height:1.8;">{_item.get("feedback", "")}</div>'
-                f'{"<div style=\\"margin-top:12px;padding:8px 14px;background:#27ae6033;border-radius:8px;color:#2ecc71;font-weight:bold;\\">✅ COMPLETED</div>" if _is_done else ""}'
+                f'{_done_badge}'
                 f'</div>',
                 unsafe_allow_html=True
             )
