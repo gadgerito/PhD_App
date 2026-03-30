@@ -1683,8 +1683,8 @@ _msg_lines.append("*Gotham needs you. Dive in.* 🌙")
 st.markdown("\n\n".join(_msg_lines))
 st.divider()
 
-t1, t2, t3, t4, t5, t6, t7 = st.tabs([
-    "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review", "🧠 Mind Map", "🎯 Focus"
+t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs([
+    "⚔️ Task Board", "📓 Response Lab", "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review", "🧠 Mind Map", "🎯 Focus", "🦇 EKT Hit List"
 ])
 
 # ── TAB 1: TASK BOARD ──────────────────────
@@ -3631,6 +3631,173 @@ Today's drafts:
         if st.session_state.get("latest_daily_update"):
             with st.expander("📋 Last Update"):
                 st.write(st.session_state["latest_daily_update"])
+
+# ── TAB 8: EKT HIT LIST ────────────────────
+with t8:
+    st.header("🦇 EKT Hit List")
+    st.caption("Emma Tsui's feedback — work through them one by one, earn XP for each.")
+
+    # Load feedback from MongoDB
+    _ekt_items = []
+    try:
+        _ekt_items = list(get_mongo_db()["comps_feedback"].find(
+            {"reviewer": "Emma Tsui"},
+            {"_id": 0}
+        ).sort([("paper_num", 1), ("comment_id", 1)]))
+    except Exception as e:
+        st.warning(f"Could not load EKT feedback: {e}")
+
+    if _ekt_items:
+        _ekt_pending = [f for f in _ekt_items if f.get("status") == "pending"]
+        _ekt_done = [f for f in _ekt_items if f.get("status") != "pending"]
+        _total = len(_ekt_items)
+        _done_count = len(_ekt_done)
+
+        # Progress bar
+        st.progress(_done_count / _total if _total else 0,
+                     text=f"🦇 {_done_count}/{_total} feedback items addressed — {_total - _done_count} remaining")
+
+        # XP info
+        _xp_per_type = {"quick_fix": 10, "clarification": 15, "substantive": 25, "major": 40, "none": 0}
+        _total_xp_available = sum(_xp_per_type.get(f.get("action_type", ""), 10) for f in _ekt_pending)
+        st.markdown(f"**XP available from remaining items: {_total_xp_available}**")
+
+        st.divider()
+
+        # Filter controls
+        _ekt_col1, _ekt_col2, _ekt_col3 = st.columns(3)
+        _ekt_paper_filter = _ekt_col1.selectbox(
+            "Paper:", ["All", "HBMC", "Climate", "Delphi", "SCPA", "General"],
+            key="ekt_paper_filter"
+        )
+        _ekt_type_filter = _ekt_col2.selectbox(
+            "Type:", ["All", "quick_fix", "clarification", "substantive", "major"],
+            key="ekt_type_filter"
+        )
+        _ekt_status_filter = _ekt_col3.selectbox(
+            "Status:", ["Pending", "Done", "All"],
+            key="ekt_status_filter"
+        )
+
+        # Apply filters
+        _filtered = _ekt_items
+        if _ekt_paper_filter != "All":
+            _filtered = [f for f in _filtered if f.get("paper") == _ekt_paper_filter]
+        if _ekt_type_filter != "All":
+            _filtered = [f for f in _filtered if f.get("action_type") == _ekt_type_filter]
+        if _ekt_status_filter == "Pending":
+            _filtered = [f for f in _filtered if f.get("status") == "pending"]
+        elif _ekt_status_filter == "Done":
+            _filtered = [f for f in _filtered if f.get("status") != "pending"]
+
+        # Current item index
+        if "ekt_current_idx" not in st.session_state:
+            st.session_state.ekt_current_idx = 0
+
+        if not _filtered:
+            st.success("No items match your filters — nice work!")
+        else:
+            # Clamp index
+            _idx = st.session_state.ekt_current_idx % len(_filtered)
+            _item = _filtered[_idx]
+
+            # Navigation
+            _nav_col1, _nav_col2, _nav_col3 = st.columns([1, 4, 1])
+            if _nav_col1.button("⬅️ Prev", key="ekt_prev", use_container_width=True):
+                st.session_state.ekt_current_idx = (_idx - 1) % len(_filtered)
+                st.rerun()
+            _nav_col2.markdown(f"<div style='text-align:center;font-size:1.1rem;padding:6px;'><b>{_idx + 1} / {len(_filtered)}</b></div>", unsafe_allow_html=True)
+            if _nav_col3.button("➡️ Next", key="ekt_next", use_container_width=True):
+                st.session_state.ekt_current_idx = (_idx + 1) % len(_filtered)
+                st.rerun()
+
+            st.divider()
+
+            # Item card
+            _priority_color = {"high": "#e74c3c", "medium": "#f39c12", "low": "#27ae60", "none": "#888"}
+            _type_icon = {"quick_fix": "⚡", "clarification": "💬", "substantive": "📝", "major": "🏗️", "none": "✅"}
+            _p_color = _priority_color.get(_item.get("priority", "medium"), "#888")
+            _t_icon = _type_icon.get(_item.get("action_type", ""), "📋")
+            _xp_reward = _xp_per_type.get(_item.get("action_type", ""), 10)
+            _is_done = _item.get("status") != "pending"
+
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);'
+                f'border-left:4px solid {_p_color};border-radius:12px;padding:20px;'
+                f'color:#f0e6c8;margin:8px 0;">'
+                f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                f'<span style="font-size:1.2rem;font-weight:bold;color:#f1c40f;">'
+                f'{_t_icon} {_item.get("id", "")} — {_item.get("section", "")}</span>'
+                f'<span style="background:{_p_color}22;color:{_p_color};padding:4px 12px;'
+                f'border-radius:20px;font-size:0.8rem;font-weight:600;">'
+                f'{_item.get("priority", "").upper()}</span></div>'
+                f'<div style="margin-top:4px;font-size:0.85rem;color:#aaa;">'
+                f'Paper: {_item.get("paper", "")} · {_item.get("action_type", "")} · ~{_item.get("estimated_minutes", "?")}min'
+                f' · <span style="color:#f1c40f;font-weight:bold;">+{_xp_reward} XP</span></div>'
+                f'<hr style="border-color:#333;margin:12px 0;">'
+                f'<div style="font-size:1.05rem;line-height:1.8;">{_item.get("feedback", "")}</div>'
+                f'{"<div style=\\"margin-top:12px;padding:8px 14px;background:#27ae6033;border-radius:8px;color:#2ecc71;font-weight:bold;\\">✅ COMPLETED</div>" if _is_done else ""}'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+            # Action buttons
+            if not _is_done:
+                st.write("")
+                _act_col1, _act_col2 = st.columns(2)
+
+                if _act_col1.button("✅ Mark Done — Earn XP!", key=f"ekt_done_{_item['id']}",
+                                     type="primary", use_container_width=True):
+                    try:
+                        get_mongo_db()["comps_feedback"].update_one(
+                            {"id": _item["id"]},
+                            {"$set": {"status": "done", "completed_at": datetime.now()}}
+                        )
+                        st.session_state.xp += _xp_reward
+                        st.session_state.celebration_xp = _xp_reward
+                        save_all_progress()
+                        st.toast(f"🦇 +{_xp_reward} XP! {_item['id']} done!", icon="🦇")
+                        st.balloons()
+                        # Auto-advance to next
+                        st.session_state.ekt_current_idx = (_idx + 1) % len(_filtered)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to update: {e}")
+
+                if _act_col2.button("⏭️ Skip for Now", key=f"ekt_skip_{_item['id']}",
+                                     use_container_width=True):
+                    st.session_state.ekt_current_idx = (_idx + 1) % len(_filtered)
+                    st.rerun()
+            else:
+                if st.button("⏭️ Next Item", key=f"ekt_next_done_{_item['id']}",
+                              use_container_width=True):
+                    st.session_state.ekt_current_idx = (_idx + 1) % len(_filtered)
+                    st.rerun()
+
+        # Stats section
+        st.divider()
+        st.subheader("📊 Breakdown")
+        _stats_col1, _stats_col2 = st.columns(2)
+
+        with _stats_col1:
+            st.markdown("**By Paper:**")
+            for _paper in ["HBMC", "Climate", "Delphi", "SCPA", "General"]:
+                _paper_items = [f for f in _ekt_items if f.get("paper") == _paper]
+                _paper_done = [f for f in _paper_items if f.get("status") != "pending"]
+                if _paper_items:
+                    st.progress(len(_paper_done) / len(_paper_items),
+                                text=f"{_paper}: {len(_paper_done)}/{len(_paper_items)}")
+
+        with _stats_col2:
+            st.markdown("**By Type:**")
+            for _atype, _icon in [("quick_fix", "⚡"), ("clarification", "💬"), ("substantive", "📝"), ("major", "🏗️")]:
+                _type_items = [f for f in _ekt_items if f.get("action_type") == _atype]
+                _type_done = [f for f in _type_items if f.get("status") != "pending"]
+                if _type_items:
+                    st.progress(len(_type_done) / len(_type_items),
+                                text=f"{_icon} {_atype}: {len(_type_done)}/{len(_type_items)}")
+    else:
+        st.info("No EKT feedback found in MongoDB. Run `insert_to_mongodb()` from `ekt_feedback_round2.py` first.")
 
 # ── COMPS COACH FLOATING BUTTON ──────────────────────────────────────────────
 import anthropic as _anthropic
