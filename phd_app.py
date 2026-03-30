@@ -1015,7 +1015,7 @@ with st.sidebar:
         for i in cat
         if i['id'] not in st.session_state.completed_tasks
     ]
-    selected_mission = st.selectbox("🎯 Current Focus Task:", ["General Deep Work"] + all_tasks_flat)
+    selected_mission = st.selectbox("🎯 Current Focus Task:", ["General Deep Work"] + all_tasks_flat, key="sidebar_focus_task")
     # Sync selectbox to active_mission (EKT tab can also set this directly)
     if not st.session_state.get('timer_running'):
         st.session_state.active_mission = selected_mission
@@ -1493,13 +1493,22 @@ drawClock();
     current_wt_sec = _wt_sections[wt_idx] if _wt_sections else ""
 
     # ── Walkthrough controls ──
+    def _sync_task_to_section(section_name):
+        """Set sidebar focus task to first incomplete task for the given section."""
+        tids = SECTION_TASKS.get(section_name, [])
+        match = next((t for t in all_tasks_flat if any(t.startswith(tid + ":") for tid in tids)), None)
+        if match:
+            st.session_state.sidebar_focus_task = match
+
     if not wt_active:
         if st.button("🗺️ Start Guided Walkthrough", use_container_width=True, key="wt_start"):
             st.session_state.walkthrough_active = True
             st.session_state.walkthrough_idx = 0
             st.session_state.walkthrough_introduced = -1
             st.session_state.coach_messages = []
-            st.session_state.focus_section_select = _wt_sections[0] if _wt_sections else ""
+            first_sec = _wt_sections[0] if _wt_sections else ""
+            st.session_state.focus_section_select = first_sec
+            _sync_task_to_section(first_sec)
             st.rerun()
         _focus_sec = st.session_state.get("focus_section_select", "")
         if _focus_sec:
@@ -1525,13 +1534,17 @@ drawClock();
             st.session_state.walkthrough_idx -= 1
             st.session_state.coach_messages = []
             st.session_state.walkthrough_introduced = -1
-            st.session_state.focus_section_select = _wt_sections[st.session_state.walkthrough_idx]
+            new_sec = _wt_sections[st.session_state.walkthrough_idx]
+            st.session_state.focus_section_select = new_sec
+            _sync_task_to_section(new_sec)
             st.rerun()
         if nav2.button("Next ▶", key="wt_next", use_container_width=True, disabled=(wt_idx >= len(_wt_sections)-1)):
             st.session_state.walkthrough_idx += 1
             st.session_state.coach_messages = []
             st.session_state.walkthrough_introduced = -1
-            st.session_state.focus_section_select = _wt_sections[st.session_state.walkthrough_idx]
+            new_sec = _wt_sections[st.session_state.walkthrough_idx]
+            st.session_state.focus_section_select = new_sec
+            _sync_task_to_section(new_sec)
             st.rerun()
         if nav3.button("✖ End", key="wt_end", use_container_width=True):
             st.session_state.walkthrough_active = False
