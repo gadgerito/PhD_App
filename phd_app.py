@@ -1072,12 +1072,14 @@ with st.sidebar:
 
     if not st.session_state.get('timer_running'):
         if st.button("🚀 Start 25m Sprint", use_container_width=True):
+                st.session_state.active_mission = selected_mission
                 st.session_state.target_time = datetime.now() + timedelta(minutes=25)
                 st.session_state.timer_running = True
                 st.session_state.timer_paused = False
+                save_all_progress()
                 st.rerun()
         else:
-            p_col1, p_col2 = st.columns(2)
+            p_col1, p_col2, p_col3 = st.columns(3)
             if st.session_state.get('timer_paused'):
                 if p_col1.button("▶️ Resume", use_container_width=True):
                     paused_duration = datetime.now() - st.session_state.pause_start
@@ -1094,7 +1096,7 @@ with st.sidebar:
                 if st.session_state.get('target_time'):
                     elapsed_mins = int((datetime.now() - (st.session_state.target_time - timedelta(minutes=25))).total_seconds() / 60)
                     if elapsed_mins > 0:
-                        task_id = selected_mission.split(":")[0]
+                        task_id = st.session_state.get("active_mission", "General Deep Work").split(":")[0]
                         st.session_state.task_timers[task_id] = \
                             st.session_state.task_timers.get(task_id, 0) + elapsed_mins
                         st.session_state.xp += elapsed_mins
@@ -1104,6 +1106,15 @@ with st.sidebar:
                 st.session_state.timer_running = False
                 st.session_state.timer_paused = False
                 st.session_state.target_time = None
+                st.session_state.active_mission = ""
+                st.rerun()
+
+            if p_col3.button("🔄 Reset Timer", use_container_width=True):
+                st.session_state.timer_running = False
+                st.session_state.timer_paused = False
+                st.session_state.target_time = None
+                st.session_state.active_mission = ""
+                save_all_progress()
                 st.rerun()
 
     st.divider()
@@ -3774,7 +3785,14 @@ with t8:
                 _timer_active = st.session_state.get('timer_running', False)
                 _on_this = st.session_state.get('active_mission', '') == _ekt_mission
                 if _timer_active and _on_this:
-                    _act_col2.markdown("⏳ **Timer running...**")
+                    if _act_col2.button("🔄 Reset Timer", key=f"ekt_reset_{_item['id']}",
+                                         use_container_width=True):
+                        st.session_state.timer_running = False
+                        st.session_state.timer_paused = False
+                        st.session_state.target_time = None
+                        st.session_state.active_mission = ""
+                        save_all_progress()
+                        st.rerun()
                 elif not _timer_active:
                     _est = _item.get("estimated_minutes", 25)
                     _timer_mins = max(_est, 10)  # minimum 10min sprint
@@ -3788,7 +3806,14 @@ with t8:
                         st.toast(f"🚀 {_timer_mins}m sprint started for {_item['id']}!", icon="🦇")
                         st.rerun()
                 else:
-                    _act_col2.markdown("⏳ *Timer on another task*")
+                    if _act_col2.button("🔄 Reset Timer", key=f"ekt_reset_other_{_item['id']}",
+                                         use_container_width=True):
+                        st.session_state.timer_running = False
+                        st.session_state.timer_paused = False
+                        st.session_state.target_time = None
+                        st.session_state.active_mission = ""
+                        save_all_progress()
+                        st.rerun()
 
                 if _act_col3.button("⏭️ Skip", key=f"ekt_skip_{_item['id']}",
                                      use_container_width=True):
