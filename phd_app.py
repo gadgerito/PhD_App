@@ -3679,6 +3679,157 @@ with t8:
 
         st.divider()
 
+        # ── RACE THE CLOCK MODE ──────────────────────────────
+        _race_active = st.session_state.get("race_active", False)
+        _race_taunts = [
+            "Think you can outrun the clock, Dark Knight?",
+            "Gotham's burning. How fast can you work?",
+            "The clock is ticking. Show me what you've got.",
+            "Every second wasted is a second Gotham suffers.",
+            "You're not fast enough... or are you?",
+        ]
+
+        if not _race_active:
+            with st.expander("🏎️ **RACE THE CLOCK** — Blitz through feedback for bonus XP", expanded=False):
+                st.markdown(
+                    '<div style="background:#1a1a2e;border-left:4px solid #e74c3c;border-radius:8px;'
+                    'padding:14px;color:#f0e6c8;margin-bottom:12px;">'
+                    f'<b style="color:#e74c3c;">🦹 Villain:</b> <i>"{random.choice(_race_taunts)}"</i>'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
+                st.markdown("**Set your challenge:**")
+                _race_col1, _race_col2 = st.columns(2)
+                _race_target = _race_col1.number_input(
+                    "Items to complete:", min_value=1, max_value=len(_ekt_pending),
+                    value=min(5, len(_ekt_pending)), key="race_target_input"
+                )
+                _race_presets = {"Quick Blitz (15m)": 15, "Sprint (30m)": 30, "Marathon (60m)": 60, "Custom": 0}
+                _race_preset = _race_col2.selectbox("Time limit:", list(_race_presets.keys()), key="race_preset")
+                if _race_preset == "Custom":
+                    _race_minutes = _race_col2.number_input("Minutes:", min_value=5, max_value=120, value=20, key="race_custom_mins")
+                else:
+                    _race_minutes = _race_presets[_race_preset]
+
+                _race_bonus = _race_target * 10  # bonus XP for beating the clock
+                st.markdown(
+                    f"**Challenge:** Complete **{_race_target} items** in **{_race_minutes} minutes**  \n"
+                    f"**Bonus if you beat the clock:** +{_race_bonus} XP  \n"
+                    f"**Bonus per item with time left:** +5 XP each"
+                )
+
+                if st.button("🏁 START RACE", type="primary", use_container_width=True, key="race_start"):
+                    st.session_state.race_active = True
+                    st.session_state.race_target = _race_target
+                    st.session_state.race_completed = 0
+                    st.session_state.race_end_time = datetime.now() + timedelta(minutes=_race_minutes)
+                    st.session_state.race_bonus = _race_bonus
+                    st.session_state.race_streak = 0
+                    st.session_state.race_best_streak = 0
+                    st.rerun()
+        else:
+            # Race is active — show race HUD
+            _race_end = st.session_state.get("race_end_time", datetime.now())
+            _race_remaining = _race_end - datetime.now()
+            _race_secs = max(0, int(_race_remaining.total_seconds()))
+            _race_mins, _race_s = divmod(_race_secs, 60)
+            _race_completed = st.session_state.get("race_completed", 0)
+            _race_target_count = st.session_state.get("race_target", 5)
+            _race_streak = st.session_state.get("race_streak", 0)
+            _race_best = st.session_state.get("race_best_streak", 0)
+            _race_pct = _race_completed / _race_target_count if _race_target_count else 0
+
+            # Determine urgency color
+            if _race_secs <= 0:
+                _clock_color = "#e74c3c"
+                _clock_emoji = "💀"
+            elif _race_secs < 120:
+                _clock_color = "#e74c3c"
+                _clock_emoji = "🔥"
+            elif _race_secs < 300:
+                _clock_color = "#f39c12"
+                _clock_emoji = "⚡"
+            else:
+                _clock_color = "#2ecc71"
+                _clock_emoji = "🏎️"
+
+            # Streak display
+            _streak_text = ""
+            if _race_streak >= 3:
+                _streak_text = f' · <span style="color:#f1c40f;">🔥 {_race_streak}x STREAK!</span>'
+
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#1a0a0a,#2a0a0a);'
+                f'border:2px solid {_clock_color};border-radius:12px;padding:16px;'
+                f'color:#f0e6c8;margin-bottom:12px;">'
+                f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                f'<div>'
+                f'<span style="font-size:1.8rem;font-weight:bold;color:{_clock_color};">'
+                f'{_clock_emoji} {_race_mins:02d}:{_race_s:02d}</span>'
+                f'<span style="margin-left:16px;font-size:1rem;">Items: <b>{_race_completed}/{_race_target_count}</b>'
+                f'{_streak_text}</span>'
+                f'</div>'
+                f'<div style="font-size:0.85rem;color:#aaa;">Best streak: {_race_best}</div>'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+            st.progress(_race_pct, text=f"{int(_race_pct * 100)}% complete")
+
+            # Check win/lose conditions
+            if _race_completed >= _race_target_count:
+                _bonus = st.session_state.get("race_bonus", 0)
+                _time_bonus = (_race_secs // 60) * 5  # 5 XP per minute remaining
+                _streak_bonus = _race_best * 5  # 5 XP per best streak
+                _total_bonus = _bonus + _time_bonus + _streak_bonus
+                st.markdown(
+                    f'<div style="background:linear-gradient(135deg,#0a2a0a,#0a3a0a);'
+                    f'border:2px solid #2ecc71;border-radius:12px;padding:20px;'
+                    f'color:#d5f5e3;text-align:center;">'
+                    f'<div style="font-size:2rem;">🏆 RACE WON!</div>'
+                    f'<div style="font-size:1.2rem;margin-top:8px;">'
+                    f'Clock bonus: +{_bonus} XP · Time left bonus: +{_time_bonus} XP · Streak bonus: +{_streak_bonus} XP</div>'
+                    f'<div style="font-size:1.5rem;color:#f1c40f;margin-top:8px;font-weight:bold;">'
+                    f'Total bonus: +{_total_bonus} XP</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+                if st.button("🎉 Claim Bonus & End Race", type="primary", use_container_width=True, key="race_claim"):
+                    st.session_state.xp += _total_bonus
+                    st.session_state.celebration_xp = _total_bonus
+                    st.session_state.race_active = False
+                    save_all_progress()
+                    st.balloons()
+                    st.rerun()
+            elif _race_secs <= 0:
+                _partial = _race_completed * 5  # consolation XP
+                st.markdown(
+                    f'<div style="background:linear-gradient(135deg,#2a0a0a,#3a0a0a);'
+                    f'border:2px solid #e74c3c;border-radius:12px;padding:20px;'
+                    f'color:#f5d5d5;text-align:center;">'
+                    f'<div style="font-size:2rem;">⏰ TIME\'S UP!</div>'
+                    f'<div style="font-size:1rem;margin-top:8px;">'
+                    f'You completed {_race_completed}/{_race_target_count}. '
+                    f'Consolation: +{_partial} XP</div>'
+                    f'<div style="font-size:0.9rem;margin-top:4px;color:#aaa;">'
+                    f'<i>"It\'s not who I am underneath, but what I do that defines me."</i></div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+                if st.button("💪 Collect & Try Again", use_container_width=True, key="race_retry"):
+                    st.session_state.xp += _partial
+                    st.session_state.celebration_xp = _partial
+                    st.session_state.race_active = False
+                    save_all_progress()
+                    st.rerun()
+
+            # Abort button
+            if st.button("🛑 Abort Race", key="race_abort"):
+                st.session_state.race_active = False
+                st.rerun()
+
+        st.divider()
+
         # Filter controls
         _ekt_col1, _ekt_col2, _ekt_col3 = st.columns(3)
         _ekt_paper_filter = _ekt_col1.selectbox(
@@ -3771,6 +3922,12 @@ with t8:
                         )
                         st.session_state.xp += _xp_reward
                         st.session_state.celebration_xp = _xp_reward
+                        # Race the clock tracking
+                        if st.session_state.get("race_active"):
+                            st.session_state.race_completed = st.session_state.get("race_completed", 0) + 1
+                            st.session_state.race_streak = st.session_state.get("race_streak", 0) + 1
+                            if st.session_state.race_streak > st.session_state.get("race_best_streak", 0):
+                                st.session_state.race_best_streak = st.session_state.race_streak
                         save_all_progress()
                         st.toast(f"🦇 +{_xp_reward} XP! {_item['id']} done!", icon="🦇")
                         st.balloons()
@@ -3817,6 +3974,9 @@ with t8:
 
                 if _act_col3.button("⏭️ Skip", key=f"ekt_skip_{_item['id']}",
                                      use_container_width=True):
+                    # Break streak on skip during race
+                    if st.session_state.get("race_active"):
+                        st.session_state.race_streak = 0
                     st.session_state.ekt_current_idx = (_idx + 1) % len(_filtered)
                     st.rerun()
             else:
