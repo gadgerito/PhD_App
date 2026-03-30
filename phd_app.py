@@ -3474,7 +3474,7 @@ with t7:
     # ── GOOGLE DOC LINK ──────────────────────────────────
     st.divider()
     st.subheader("📝 Google Doc Editor")
-    _GDOC_URL = "https://docs.google.com/document/d/10VWt2EcFl8oBFwb_kdBl_5j3C1IAhOjdPcGzWmIlIhs/edit"
+    _GDOC_URL = "https://docs.google.com/document/d/1OMk-Q-IJrsO-H1iqENxM68VHBFpmtXQcriSzjKz5dME/edit?usp=sharing"
     st.markdown(
         f'<a href="{_GDOC_URL}" target="_blank" style="display:inline-block;padding:12px 28px;'
         f'background:linear-gradient(135deg,#f1c40f,#e67e22);color:#1a1a2e;font-weight:bold;'
