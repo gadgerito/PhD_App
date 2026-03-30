@@ -20,28 +20,25 @@ def get_audio_b64():
 st.set_page_config(layout="wide", page_title="The Dark Knight of Public Health", page_icon="🦇")
 
 # ── PASSWORD GATE ──
-def check_password():
-    if st.session_state.get("authenticated"):
-        return True
-    st.markdown("## 🦇 Bat-Computer Access")
-    password = st.text_input("Enter password:", type="password")
-    if st.button("Enter the Batcave"):
-        if password == st.secrets["app"]["password"]:
-            st.session_state.authenticated = True
-            st.rerun()
-        else:
-            st.error("Access Denied. This is not your city.")
-    return False
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-if not check_password():
+if not st.session_state.authenticated:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        pwd = st.text_input("Password", type="password", label_visibility="collapsed")
+        if st.button("Enter the Batcave", use_container_width=True):
+            if pwd == st.secrets["app_password"]:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Access Denied. This is not your city.")
     st.stop()
 # -- MongoDB --
 @st.cache_resource
 def get_mongo_db():
     client = MongoClient(
-        st.secrets["mongo"]["uri"],
-        username=st.secrets["mongo"]["username"],
-        password=st.secrets["mongo"]["password"],
+        st.secrets["mongo_uri"],
         tls=True,
         tlsAllowInvalidCertificates=True
     )
