@@ -3668,9 +3668,43 @@ with t8:
         _total = len(_ekt_items)
         _done_count = len(_ekt_done)
 
-        # Progress bar
-        st.progress(_done_count / _total if _total else 0,
-                     text=f"🦇 {_done_count}/{_total} feedback items addressed — {_total - _done_count} remaining")
+        # Glowing overall progress bar
+        _overall_pct = _done_count / _total if _total else 0
+        if _overall_pct < 0.25:
+            _ov_color = "#e74c3c"
+            _ov_glow = "rgba(231,76,60,0.5)"
+        elif _overall_pct < 0.5:
+            _ov_color = "#f39c12"
+            _ov_glow = "rgba(243,156,18,0.5)"
+        elif _overall_pct < 0.75:
+            _ov_color = "#3498db"
+            _ov_glow = "rgba(52,152,219,0.5)"
+        elif _overall_pct < 1.0:
+            _ov_color = "#2ecc71"
+            _ov_glow = "rgba(46,204,113,0.5)"
+        else:
+            _ov_color = "#f1c40f"
+            _ov_glow = "rgba(241,196,15,0.7)"
+        _ov_width = max(2, int(_overall_pct * 100))
+        st.markdown(
+            f'<div style="background:#111;border-radius:10px;height:32px;overflow:hidden;'
+            f'border:1px solid #333;margin:8px 0;position:relative;">'
+            f'<div style="height:100%;width:{_ov_width}%;background:linear-gradient(90deg,{_ov_color},{_ov_color}dd);'
+            f'border-radius:10px;transition:width 0.5s ease;'
+            f'box-shadow:0 0 12px {_ov_glow}, 0 0 24px {_ov_glow}, inset 0 0 8px rgba(255,255,255,0.15);'
+            f'animation:overallPulse 2s ease-in-out infinite;">'
+            f'</div>'
+            f'<div style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;'
+            f'align-items:center;justify-content:center;font-size:0.85rem;font-weight:bold;'
+            f'color:#fff;text-shadow:0 0 6px rgba(0,0,0,0.8);">'
+            f'🦇 {_done_count}/{_total} feedback items — {_total - _done_count} remaining</div>'
+            f'</div>'
+            f'<style>@keyframes overallPulse {{'
+            f'0%,100%{{box-shadow:0 0 10px {_ov_glow}, 0 0 20px {_ov_glow};}}'
+            f'50%{{box-shadow:0 0 18px {_ov_glow}, 0 0 36px {_ov_glow}, 0 0 50px {_ov_glow};}}'
+            f'}}</style>',
+            unsafe_allow_html=True
+        )
 
         # XP info
         _xp_per_type = {"quick_fix": 10, "clarification": 15, "substantive": 25, "major": 40, "none": 0}
@@ -3792,7 +3826,42 @@ with t8:
                 f'</div>',
                 unsafe_allow_html=True
             )
-            st.progress(_race_pct, text=f"{int(_race_pct * 100)}% complete")
+            # Glowing progress bar
+            if _race_pct < 0.25:
+                _bar_color = "#e74c3c"
+                _glow_color = "rgba(231,76,60,0.6)"
+            elif _race_pct < 0.5:
+                _bar_color = "#f39c12"
+                _glow_color = "rgba(243,156,18,0.6)"
+            elif _race_pct < 0.75:
+                _bar_color = "#3498db"
+                _glow_color = "rgba(52,152,219,0.6)"
+            elif _race_pct < 1.0:
+                _bar_color = "#2ecc71"
+                _glow_color = "rgba(46,204,113,0.6)"
+            else:
+                _bar_color = "#f1c40f"
+                _glow_color = "rgba(241,196,15,0.8)"
+            _bar_width = max(2, int(_race_pct * 100))
+            st.markdown(
+                f'<div style="background:#111;border-radius:10px;height:28px;overflow:hidden;'
+                f'border:1px solid #333;margin:8px 0 16px 0;position:relative;">'
+                f'<div style="height:100%;width:{_bar_width}%;background:linear-gradient(90deg,{_bar_color},{_bar_color}dd);'
+                f'border-radius:10px;transition:width 0.5s ease;'
+                f'box-shadow:0 0 12px {_glow_color}, 0 0 24px {_glow_color}, inset 0 0 8px rgba(255,255,255,0.15);'
+                f'animation:barPulse 1.5s ease-in-out infinite;">'
+                f'</div>'
+                f'<div style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;'
+                f'align-items:center;justify-content:center;font-size:0.8rem;font-weight:bold;'
+                f'color:#fff;text-shadow:0 0 6px rgba(0,0,0,0.8);">'
+                f'{_race_completed}/{_race_target_count} — {int(_race_pct * 100)}%</div>'
+                f'</div>'
+                f'<style>@keyframes barPulse {{'
+                f'0%,100%{{box-shadow:0 0 12px {_glow_color}, 0 0 24px {_glow_color};}}'
+                f'50%{{box-shadow:0 0 20px {_glow_color}, 0 0 40px {_glow_color}, 0 0 60px {_glow_color};}}'
+                f'}}</style>',
+                unsafe_allow_html=True
+            )
 
             # Check win/lose conditions
             if _race_completed >= _race_target_count:
