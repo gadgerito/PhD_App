@@ -247,6 +247,43 @@ BATMAN_QUOTES = [
     ("I'm Batman.", "Batman"),
 ]
 
+# ─────────────────────────────────────────────
+# 5. ROBIN MISSION NAMES
+# ─────────────────────────────────────────────
+ROBIN_MISSIONS = {
+    "Phase 1: The Heavy Lifting (Structural Editing)": [
+        ("Operation: Knightfall", "For when you have to break down a massive, clunky chapter and rebuild it from the bones."),
+        ("The Lazarus Protocol", "Resurrecting that paragraph you deleted three months ago because it actually makes sense now."),
+        ("Architect of Arkham", "Reorganizing your Literature Review so it doesn't look like a madman's cell."),
+        ("The Long Halloween", "For those grueling, multi-day editing sessions where you're hunting down one specific argument."),
+    ],
+    "Phase 2: The Data & Policy Check (Health Specifics)": [
+        ("The Oracle Audit", "Verifying every single p-value and data point in your results section."),
+        ("Project: Venom", "Strengthening your policy recommendations so they have enough 'punch' to actually change the system."),
+        ("The Gotham Census", "Cleaning up your demographic tables and sample size descriptions."),
+        ("Social Determinants of Justice", "Polishing the section where you argue for equity in the healthcare system."),
+    ],
+    "Phase 3: The Final Polish (Proofreading & Formatting)": [
+        ("The Bat-Glare", "A final, cold, hard look at your bibliography to catch every missing comma or italicized journal title."),
+        ("Neutralizing the Riddler", "Rewriting that one overly academic sentence that literally no one (not even you) understands."),
+        ("The Wayne Foundation Grant", "Double-checking all your acknowledgments and funding citations."),
+        ("Zero Hour", "The final read-through before you hit 'Submit' and disappear into the night (or just go to sleep)."),
+    ],
+    "Phase 4: Dealing with Advisors (Feedback)": [
+        ("The Joker's Wild", "Processing that one piece of feedback from your committee that completely contradicts everything they said last month."),
+        ("Squad Goals (Suicide Mission)", "Integrating the comments from the toughest member of your defense panel."),
+        ("Commissioner Gordon's Signal", "Checking the latest emails from your chair to see what 'emergency' needs fixing now."),
+    ],
+}
+
+# Flat list for easy random selection or display
+ROBIN_MISSIONS_FLAT = [
+    (phase, name, desc)
+    for phase, missions in ROBIN_MISSIONS.items()
+    for name, desc in missions
+]
+
+
 def quote_box(quote, source, typewriter=True):
     tw_class = "typewriter" if typewriter else ""
     return f"""
@@ -1467,6 +1504,38 @@ drawClock();
 
     st.subheader("🐦 Robin — Your Dissertation Sidekick")
 
+    # ── Mission Picker ──
+    with st.expander("🎯 Choose Your Mission", expanded=False):
+        _phase_options = list(ROBIN_MISSIONS.keys())
+        _selected_phase = st.selectbox("Phase:", _phase_options, key="robin_mission_phase")
+        _phase_missions = ROBIN_MISSIONS[_selected_phase]
+        _mission_labels = [f"{name} — {desc}" for name, desc in _phase_missions]
+        _mission_idx = st.radio("Mission:", range(len(_phase_missions)),
+                                format_func=lambda i: _mission_labels[i],
+                                key="robin_mission_idx")
+        _chosen_mission_name, _chosen_mission_desc = _phase_missions[_mission_idx]
+        if st.button("🦇 Activate Mission", use_container_width=True, key="robin_mission_activate"):
+            st.session_state.robin_active_mission = (_chosen_mission_name, _chosen_mission_desc, _selected_phase)
+            st.session_state.coach_messages = []
+            st.session_state.walkthrough_introduced = -1
+            st.rerun()
+
+    _robin_mission = st.session_state.get("robin_active_mission")
+    if _robin_mission:
+        _rmn, _rmd, _rmp = _robin_mission
+        st.markdown(
+            f'<div style="background:#1a1a2e;border:1px solid #f1c40f;border-radius:8px;'
+            f'padding:8px 12px;margin-bottom:6px;">'
+            f'<span style="color:#f1c40f;font-size:0.7rem;">{_rmp}</span><br>'
+            f'<b style="color:#f0e6c8;font-size:0.9rem;">⚡ {_rmn}</b><br>'
+            f'<span style="color:#aaa;font-size:0.75rem;">{_rmd}</span>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+        if st.button("✖ Clear Mission", key="robin_mission_clear", use_container_width=False):
+            st.session_state.robin_active_mission = None
+            st.rerun()
+
     # ── Build full ordered section list ──
     _wt_sections = list(SECTION_TASKS.keys())
     try:
@@ -1553,10 +1622,10 @@ drawClock();
                     if _ekt_item and _ekt_item.get("feedback"):
                         # EKT item mode — brief on the specific task in front of the student
                         _intro_prompt = (
-                            f"You are Robin — loyal sidekick to Batman, who is a PhD student fighting to finish their dissertation. "
+                            f"You are Robin — loyal sidekick to the Caped Candidate, who is a PhD student fighting to finish their dissertation. "
                             f"You are smart, eager, and fully briefed on the mission. You speak with energy and loyalty — "
-                            f"you believe in Batman completely and your job is to keep them moving forward. "
-                            f"Batman is currently facing this specific committee feedback item:\n\n"
+                            f"you believe in the Caped Candidate completely and your job is to keep them moving forward. "
+                            f"The Caped Candidate is currently facing this specific committee feedback item:\n\n"
                             f"ID: {_ekt_item.get('id', '?')}\n"
                             f"Section: {_ekt_item.get('section', '?')}\n"
                             f"Paper: {_ekt_item.get('paper', '?')}\n"
@@ -1564,9 +1633,9 @@ drawClock();
                             f"Est. time: ~{_ekt_item.get('estimated_minutes', '?')} min\n"
                             f"Reviewer: {_ekt_item.get('reviewer', '?')}\n\n"
                             f"Feedback comment:\n\"{_ekt_item.get('feedback', '')}\"\n\n"
-                            f"Brief Batman in 3-5 sentences: explain exactly what this feedback is asking for, "
+                            f"Brief the Caped Candidate in 3-5 sentences: explain exactly what this feedback is asking for, "
                             f"give one concrete first step to address it, and flag any watch-outs. "
-                            f"Sound like Robin reporting to Batman — sharp, loyal, ready for action. Keep it brief — this is a sidebar."
+                            f"Sound like Robin reporting to the Caped Candidate — sharp, loyal, ready for action. Keep it brief — this is a sidebar."
                         )
                     else:
                         # Section walkthrough mode
@@ -1589,14 +1658,14 @@ drawClock();
                         _draft = st.session_state.saved_responses.get(f"focus_draft_{current_wt_sec}", "")
                         _draft_preview = ("Their current draft:\n" + _draft[:300]) if _draft else "No draft written yet."
                         _intro_prompt = (
-                            f"You are Robin — loyal sidekick to Batman, who is a PhD student fighting to finish their dissertation. "
-                            f"You are smart, eager, fully briefed on every section, and completely devoted to helping Batman succeed. "
-                            f"Batman has just arrived at a new section of their comps revisions. Brief them like a mission report.\n\n"
+                            f"You are Robin — loyal sidekick to the Caped Candidate, who is a PhD student fighting to finish their dissertation. "
+                            f"You are smart, eager, fully briefed on every section, and completely devoted to helping the Caped Candidate succeed. "
+                            f"The Caped Candidate has just arrived at a new section of their comps revisions. Brief them like a mission report.\n\n"
                             f"Section: **{current_wt_sec}** ({wt_idx+1} of {len(_wt_sections)})\n\n"
                             f"Committee feedback:\n{_fb_ctx}\n\n"
                             f"{_draft_preview}\n\n"
                             f"In 3-5 sentences: introduce this section, call out the 1-2 most critical feedback items to hit first, "
-                            f"and give one concrete first move. Sound like Robin reporting to Batman — sharp, loyal, ready. "
+                            f"and give one concrete first move. Sound like Robin reporting to the Caped Candidate — sharp, loyal, ready. "
                             f"Keep it brief — this is a sidebar."
                         )
                     intro_response = client.messages.create(
@@ -1668,17 +1737,23 @@ drawClock();
                             f"Feedback: \"{_ekt_item_chat.get('feedback','')}\"\n"
                         )
 
-                    system_prompt = f"""You are Robin — loyal sidekick to Batman, who is a PhD student fighting to finish their dissertation. You are smart, sharp, and completely devoted to helping Batman win. You speak with energy and loyalty. You know every section, every piece of committee feedback, and every deadline. Your job is to keep Batman moving forward — no excuses, no stalling, just action.
+                    _active_robin_mission = st.session_state.get("robin_active_mission")
+                    _mission_line = ""
+                    if _active_robin_mission:
+                        _amn, _amd, _amp = _active_robin_mission
+                        _mission_line = f"\nACTIVE MISSION: {_amn} ({_amp})\nMission objective: {_amd}\n"
 
+                    system_prompt = f"""You are Robin — loyal sidekick to the Caped Candidate, who is a PhD student fighting to finish their dissertation. You are smart, sharp, and completely devoted to helping the Caped Candidate win. You speak with energy and loyalty. You know every section, every piece of committee feedback, and every deadline. Your job is to keep the Caped Candidate moving forward — no excuses, no stalling, just action.
+{_mission_line}
 {"MISSION BRIEFING — Section " + str(wt_idx+1) + " of " + str(len(_wt_sections)) if wt_active else ""}
 Current section: **{_focus_sec}**
 {_item_ctx}
 Committee feedback:
 {_fb_ctx if _fb_ctx else "None loaded."}
 
-{"Batman's current draft:\n" + _draft if _draft else "No draft yet."}
+{"The Caped Candidate's current draft:\n" + _draft if _draft else "No draft yet."}
 
-Be direct, specific, doctoral-level. Keep responses concise — this is a sidebar. Sound like Robin: loyal, energetic, mission-focused."""
+Be direct, specific, doctoral-level. Keep responses concise — this is a sidebar. Sound like Robin: loyal, energetic, mission-focused. When a named mission is active, frame your guidance around its objective and refer to it by name."""
 
                     response = client.messages.create(
                         model="claude-sonnet-4-20250514",
@@ -3779,46 +3854,8 @@ with t8:
         ]
         _villain_name, _villain_quote = random.choice(_race_taunts)
 
-        if not _race_active:
-            with st.expander("🏎️ **RACE THE CLOCK** — Blitz through feedback for bonus XP", expanded=False):
-                st.markdown(
-                    '<div style="background:#1a1a2e;border-left:4px solid #e74c3c;border-radius:8px;'
-                    'padding:14px;color:#f0e6c8;margin-bottom:12px;">'
-                    f'<b style="color:#e74c3c;">🦹 {_villain_name}:</b> <i>"{_villain_quote}"</i>'
-                    '</div>',
-                    unsafe_allow_html=True
-                )
-                st.markdown("**Set your challenge:**")
-                _race_col1, _race_col2 = st.columns(2)
-                _race_target = _race_col1.number_input(
-                    "Items to complete:", min_value=1, max_value=len(_ekt_pending),
-                    value=min(5, len(_ekt_pending)), key="race_target_input"
-                )
-                _race_presets = {"Quick Blitz (15m)": 15, "Sprint (30m)": 30, "Marathon (60m)": 60, "Custom": 0}
-                _race_preset = _race_col2.selectbox("Time limit:", list(_race_presets.keys()), key="race_preset")
-                if _race_preset == "Custom":
-                    _race_minutes = _race_col2.number_input("Minutes:", min_value=5, max_value=120, value=20, key="race_custom_mins")
-                else:
-                    _race_minutes = _race_presets[_race_preset]
-
-                _race_bonus = _race_target * 10  # bonus XP for beating the clock
-                st.markdown(
-                    f"**Challenge:** Complete **{_race_target} items** in **{_race_minutes} minutes**  \n"
-                    f"**Bonus if you beat the clock:** +{_race_bonus} XP  \n"
-                    f"**Bonus per item with time left:** +5 XP each"
-                )
-
-                if st.button("🏁 START RACE", type="primary", use_container_width=True, key="race_start"):
-                    st.session_state.race_active = True
-                    st.session_state.race_target = _race_target
-                    st.session_state.race_completed = 0
-                    st.session_state.race_end_time = datetime.now() + timedelta(minutes=_race_minutes)
-                    st.session_state.race_bonus = _race_bonus
-                    st.session_state.race_streak = 0
-                    st.session_state.race_best_streak = 0
-                    st.rerun()
-        else:
-            # Race is active — show race HUD
+        @st.fragment(run_every="1s")
+        def race_hud():
             _race_end = st.session_state.get("race_end_time", datetime.now())
             _race_remaining = _race_end - datetime.now()
             _race_secs = max(0, int(_race_remaining.total_seconds()))
@@ -3945,7 +3982,7 @@ with t8:
                     st.session_state.race_active = False
                     save_all_progress()
                     st.balloons()
-                    st.rerun()
+                    st.rerun(scope="app")
             elif _race_secs <= 0:
                 _partial = _race_completed * 5  # consolation XP
                 _lose_quotes = [
@@ -3975,7 +4012,7 @@ with t8:
                     st.session_state.celebration_xp = _partial
                     st.session_state.race_active = False
                     save_all_progress()
-                    st.rerun()
+                    st.rerun(scope="app")
 
             # Abort button — still get partial XP
             _abort_completed = st.session_state.get("race_completed", 0)
@@ -3988,7 +4025,48 @@ with t8:
                     save_all_progress()
                     st.toast(f"🦇 +{_abort_xp} XP for {_abort_completed} items completed!", icon="🦇")
                 st.session_state.race_active = False
-                st.rerun()
+                st.rerun(scope="app")
+
+        if not _race_active:
+            with st.expander("🏎️ **RACE THE CLOCK** — Blitz through feedback for bonus XP", expanded=False):
+                st.markdown(
+                    '<div style="background:#1a1a2e;border-left:4px solid #e74c3c;border-radius:8px;'
+                    'padding:14px;color:#f0e6c8;margin-bottom:12px;">'
+                    f'<b style="color:#e74c3c;">🦹 {_villain_name}:</b> <i>"{_villain_quote}"</i>'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
+                st.markdown("**Set your challenge:**")
+                _race_col1, _race_col2 = st.columns(2)
+                _race_target = _race_col1.number_input(
+                    "Items to complete:", min_value=1, max_value=len(_ekt_pending),
+                    value=min(5, len(_ekt_pending)), key="race_target_input"
+                )
+                _race_presets = {"Quick Blitz (15m)": 15, "Sprint (30m)": 30, "Marathon (60m)": 60, "Custom": 0}
+                _race_preset = _race_col2.selectbox("Time limit:", list(_race_presets.keys()), key="race_preset")
+                if _race_preset == "Custom":
+                    _race_minutes = _race_col2.number_input("Minutes:", min_value=5, max_value=120, value=20, key="race_custom_mins")
+                else:
+                    _race_minutes = _race_presets[_race_preset]
+
+                _race_bonus = _race_target * 10  # bonus XP for beating the clock
+                st.markdown(
+                    f"**Challenge:** Complete **{_race_target} items** in **{_race_minutes} minutes**  \n"
+                    f"**Bonus if you beat the clock:** +{_race_bonus} XP  \n"
+                    f"**Bonus per item with time left:** +5 XP each"
+                )
+
+                if st.button("🏁 START RACE", type="primary", use_container_width=True, key="race_start"):
+                    st.session_state.race_active = True
+                    st.session_state.race_target = _race_target
+                    st.session_state.race_completed = 0
+                    st.session_state.race_end_time = datetime.now() + timedelta(minutes=_race_minutes)
+                    st.session_state.race_bonus = _race_bonus
+                    st.session_state.race_streak = 0
+                    st.session_state.race_best_streak = 0
+                    st.rerun()
+        else:
+            race_hud()
 
         st.divider()
 
