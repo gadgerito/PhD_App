@@ -3929,8 +3929,16 @@ with t8:
                     save_all_progress()
                     st.rerun()
 
-            # Abort button
-            if st.button("🛑 Abort Race", key="race_abort"):
+            # Abort button — still get partial XP
+            _abort_completed = st.session_state.get("race_completed", 0)
+            _abort_xp = _abort_completed * 5
+            _abort_label = f"🛑 Abort Race (+{_abort_xp} XP for {_abort_completed} done)" if _abort_completed > 0 else "🛑 Abort Race"
+            if st.button(_abort_label, key="race_abort"):
+                if _abort_xp > 0:
+                    st.session_state.xp += _abort_xp
+                    st.session_state.celebration_xp = _abort_xp
+                    save_all_progress()
+                    st.toast(f"🦇 +{_abort_xp} XP for {_abort_completed} items completed!", icon="🦇")
                 st.session_state.race_active = False
                 st.rerun()
 
