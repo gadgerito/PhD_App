@@ -26,6 +26,7 @@ if "authenticated" not in st.session_state:
 if not st.session_state.authenticated:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        st.markdown("## 🦇 Bat-Computer Access")
         pwd = st.text_input("Password", type="password", label_visibility="collapsed")
         if st.button("Enter the Batcave", use_container_width=True):
             if pwd == st.secrets["app_password"]:
