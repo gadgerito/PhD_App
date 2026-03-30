@@ -1,0 +1,7 @@
+.streamlit/secrets.toml
+.streamlit/.secrets.toml
+.secrets.toml
+*.swp
+*.swo
+__pycache__/
+*.pyc
