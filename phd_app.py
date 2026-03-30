@@ -3749,6 +3749,12 @@ with t8:
             ("Penguin", "Time is money, Batman — and you're running out of both."),
             ("Deathstroke", "I've been watching you stall. Let's see if you can actually execute."),
             ("Hugo Strange", "I know your secret, Batman. You've been avoiding the substantive edits."),
+            ("Darkseid", "Your procrastination is a flea biting the heel of a god. There is no 'tomorrow.' There is no 'later.' There is only the Anti-Life Equation, and right now, your unfinished Chapter Four is the only thing standing in the way of total dominion. Submit, or perish."),
+            ("Reverse-Flash", "It was me, Batman. I was the one who distracted you with that YouTube rabbit hole so you'd miss your daily word count by just one minute! But even I am bored of your excuses. Finish the draft. You can't run from the deadline forever, and I'm tired of waiting for a rival who can't even format a Table of Contents."),
+            ("Amanda Waller", "I don't care about your writer's block, and I certainly don't care about your sleep schedule. You have a mission. You have a deadline. If that dissertation isn't on my desk by 0800 hours, I'm pulling your funding and labeling your entire academic career a national security threat. Get. It. Done."),
+            ("Ra's al Ghul", "A true master does not 'try' to write. A true master shapes the world through sheer force of intellect. You have spent years in the League of Graduate Students; do not shame your tutors now by trembling before a mere defense. Burn the midnight oil until the work is complete, or let your legacy be reduced to ash."),
+            ("Brainiac", "Your collection of knowledge is... incomplete. It irritates me. I have digitized entire civilizations in less time than it has taken you to write a Literature Review. The universe has no room for unfinished thoughts. Upload the file, or be deleted as an inefficient variable."),
+            ("Sinestro", "I see the yellow glow of fear in your eyes every time you look at the 'Appendices' folder. Harness it! Do not let the committee intimidate you — make them afraid of the sheer brilliance of your findings. Success is not given; it is imposed upon the weak by the strong. Write with fire."),
         ]
         _villain_name, _villain_quote = random.choice(_race_taunts)
 
