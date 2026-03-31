@@ -338,7 +338,10 @@ def quote_box(quote, source, typewriter=True):
 # ─────────────────────────────────────────────
 # 5. CSS — ALL AMBIENT ANIMATIONS
 # ─────────────────────────────────────────────
-st.markdown("""
+_noir = st.session_state.get("noir_mode", False)
+
+if not _noir:
+    st.markdown("""
 <style>
 /* ── Base ── */
 .stApp { background:#ffffff !important; color:#000000 !important; }
@@ -489,54 +492,161 @@ st.markdown("""
 <!-- Bat Signal -->
 <div id="bat-signal">
     <svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
-        <!-- Oval background -->
         <ellipse cx="100" cy="82" rx="96" ry="74" fill="#1a1a1a"/>
-        <!-- Detailed bat silhouette -->
         <path d="
-            M100,38
-            C100,38 94,28 82,28
-            C68,28 56,36 48,44
-            C38,53 34,60 30,62
-            C38,60 46,61 52,65
-            C44,70 36,80 34,92
-            C40,84 50,80 58,82
-            C56,86 54,92 55,100
-            C60,91 68,86 76,86
-            L80,100
-            C84,112 90,120 100,120
-            C110,120 116,112 120,100
-            L124,86
-            C132,86 140,91 145,100
-            C146,92 144,86 142,82
-            C150,80 160,84 166,92
-            C164,80 156,70 148,65
-            C154,61 162,60 170,62
-            C166,60 162,53 152,44
-            C144,36 132,28 118,28
-            C106,28 100,38 100,38 Z
+            M100,38 C100,38 94,28 82,28 C68,28 56,36 48,44
+            C38,53 34,60 30,62 C38,60 46,61 52,65
+            C44,70 36,80 34,92 C40,84 50,80 58,82
+            C56,86 54,92 55,100 C60,91 68,86 76,86
+            L80,100 C84,112 90,120 100,120
+            C110,120 116,112 120,100 L124,86
+            C132,86 140,91 145,100 C146,92 144,86 142,82
+            C150,80 160,84 166,92 C164,80 156,70 148,65
+            C154,61 162,60 170,62 C166,60 162,53 152,44
+            C144,36 132,28 118,28 C106,28 100,38 100,38 Z
         " fill="#f1c40f"/>
-        <!-- Sharp pointed ear tips -->
         <polygon points="72,42 62,20 84,36" fill="#f1c40f"/>
         <polygon points="128,42 138,20 116,36" fill="#f1c40f"/>
     </svg>
 </div>
 
 <!-- Flying bats (3 at different heights/speeds) -->
-<div class="fly-bat" style="top:9%;font-size:20px;animation-duration:14s;animation-delay:0s;">
-    <span>🦇</span>
+<div class="fly-bat" style="top:9%;font-size:20px;animation-duration:14s;animation-delay:0s;"><span>🦇</span></div>
+<div class="fly-bat" style="top:28%;font-size:13px;animation-duration:21s;animation-delay:-7s;opacity:0.45;"><span>🦇</span></div>
+<div class="fly-bat" style="top:52%;font-size:16px;animation-duration:17s;animation-delay:-11s;opacity:0.35;"><span>🦇</span></div>
+""", unsafe_allow_html=True)
+
+else:
+    st.markdown("""
+<style>
+/* ══ NOIR / E-INK MODE ══ */
+.stApp { background:#F2EFE8 !important; color:#111111 !important; }
+.bat-tagline { color:#555555; font-style:italic; font-size:1.2rem; margin-top:-18px; margin-bottom:4px; }
+.rank-badge  { display:inline-block; padding:6px 16px; border-radius:2px; font-weight:bold;
+               font-size:1.0rem; margin:4px 0; border:2px solid; }
+.rank-next   { font-size:0.82rem; color:#555555; margin-top:2px; }
+
+/* ── Buttons — stark ink, drop-shadow on hover ── */
+.stButton>button {
+    border-radius:2px; border:2px solid #111111;
+    background:#F2EFE8; color:#111111; font-weight:bold;
+    transition: all 0.12s ease;
+    position: relative;
+}
+.stButton>button:hover {
+    background: #E8E5DE !important;
+    box-shadow: 3px 3px 0px #111111 !important;
+    transform: translateY(-1px);
+}
+.stButton>button:active { transform: translate(1px,1px); box-shadow: 1px 1px 0px #111111 !important; }
+
+/* ── Progress bars — solid black fill, no shimmer ── */
+[data-testid="stProgressBar"] > div > div {
+    background: #111111 !important;
+    border-radius: 0px !important;
+    animation: none !important;
+}
+
+/* ── Quote box — e-ink card ── */
+.quote-wrap  { margin: 10px 0 18px 0; }
+.quote-inner {
+    background: #E8E5DE;
+    border-left: 4px solid #111111; border-radius: 0px;
+    padding: 14px 20px; color: #111111;
+    font-style: italic; font-size: 1.05rem;
+}
+.quote-src { color:#5C4A1E; font-size:0.8rem; font-style:normal; font-weight:bold; margin-top:6px; }
+
+/* ── Bat Signal — ink stamp, no glow ── */
+#bat-signal {
+    position:fixed; top:65px; right:55px; width:90px; height:90px;
+    z-index:9999; pointer-events:none; border-radius:50%;
+    background: transparent;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0.55;
+}
+#bat-signal svg { width:72px; height:72px; }
+
+/* ── Flying bats — ghostly, no flap animation ── */
+.fly-bat {
+    position:fixed; z-index:9990; pointer-events:none;
+    animation: fly-across linear infinite;
+    will-change: transform;
+}
+@keyframes fly-across {
+    0%   { transform:translateX(-80px); opacity:0; }
+    4%   { opacity:0.12; }
+    96%  { opacity:0.12; }
+    100% { transform:translateX(calc(100vw + 80px)); opacity:0; }
+}
+.fly-bat span { display:inline-block; }
+
+/* ── Completed task row ── */
+.task-done { animation: done-flash 0.6s ease-out; }
+@keyframes done-flash {
+    0%   { background: rgba(92,74,30,0.25); }
+    100% { background: transparent; }
+}
+
+/* ── XP metric — sepia, no glow ── */
+[data-testid="stMetricValue"] {
+    color: #5C4A1E !important;
+    text-shadow: none !important;
+    animation: none !important;
+}
+
+/* ── Reward button — no pulse ── */
+.reward-available .stButton>button { animation: none; }
+
+/* ── Tabs — bold underline, no glow ── */
+[data-baseweb="tab"] { transition: all 0.15s ease; }
+[aria-selected="true"][data-baseweb="tab"] {
+    font-weight: bold !important;
+    text-shadow: none !important;
+    border-bottom: 2px solid #111111 !important;
+}
+
+/* ── Rank card ── */
+.rank-card {
+    text-align:center; padding:8px 4px; border-radius:0px;
+    border:2px solid; margin:2px;
+}
+.rank-card.unlocked { animation: none; }
+</style>
+
+<!-- Bat Signal — ink stamp (dark oval, cream bat) -->
+<div id="bat-signal">
+    <svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="100" cy="82" rx="96" ry="74" fill="#2A2A2A"/>
+        <path d="
+            M100,38 C100,38 94,28 82,28 C68,28 56,36 48,44
+            C38,53 34,60 30,62 C38,60 46,61 52,65
+            C44,70 36,80 34,92 C40,84 50,80 58,82
+            C56,86 54,92 55,100 C60,91 68,86 76,86
+            L80,100 C84,112 90,120 100,120
+            C110,120 116,112 120,100 L124,86
+            C132,86 140,91 145,100 C146,92 144,86 142,82
+            C150,80 160,84 166,92 C164,80 156,70 148,65
+            C154,61 162,60 170,62 C166,60 162,53 152,44
+            C144,36 132,28 118,28 C106,28 100,38 100,38 Z
+        " fill="#F2EFE8"/>
+        <polygon points="72,42 62,20 84,36" fill="#F2EFE8"/>
+        <polygon points="128,42 138,20 116,36" fill="#F2EFE8"/>
+    </svg>
 </div>
-<div class="fly-bat" style="top:28%;font-size:13px;animation-duration:21s;animation-delay:-7s;opacity:0.45;">
-    <span>🦇</span>
-</div>
-<div class="fly-bat" style="top:52%;font-size:16px;animation-duration:17s;animation-delay:-11s;opacity:0.35;">
-    <span>🦇</span>
-</div>
+
+<!-- Flying bats — ghostly -->
+<div class="fly-bat" style="top:9%;font-size:20px;animation-duration:14s;animation-delay:0s;"><span>🦇</span></div>
+<div class="fly-bat" style="top:28%;font-size:13px;animation-duration:21s;animation-delay:-7s;"><span>🦇</span></div>
+<div class="fly-bat" style="top:52%;font-size:16px;animation-duration:17s;animation-delay:-11s;"><span>🦇</span></div>
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
 # 6. JS CELEBRATION ANIMATIONS  (iframe → window.parent escape)
+# Only build + inject when there's actually something to animate
 # ─────────────────────────────────────────────
-js_code = f"""
+if celebration_xp or rank_up_title or pomodoro_done or reward_claimed:
+ js_code = f"""
 <script>
 (function() {{
 
@@ -825,7 +935,7 @@ js_code = f"""
 }})();
 </script>
 """
-components.html(js_code, height=1)
+ components.html(js_code, height=1)
 
 # ─────────────────────────────────────────────
 # 7. GOTHAM SKYLINE BANNER
@@ -1095,6 +1205,11 @@ for _st_title, _st_ids in SECTION_TASKS.items():
 # ─────────────────────────────────────────────
 with st.sidebar:
     st.header("🦇 Bat-Computer")
+    _mode_icon = "🌑" if not st.session_state.get("noir_mode", False) else "🌈"
+    _mode_label = f"{_mode_icon} {'Noir Mode' if not st.session_state.get('noir_mode', False) else 'Color Mode'}"
+    if st.button(_mode_label, use_container_width=True, key="toggle_noir_mode"):
+        st.session_state.noir_mode = not st.session_state.get("noir_mode", False)
+        st.rerun()
     st.metric("Total XP", st.session_state.xp)
     render_rank_badge(st.session_state.xp)
 
@@ -1149,9 +1264,28 @@ with st.sidebar:
         if i['id'] not in st.session_state.completed_tasks
     ]
     selected_mission = st.selectbox("🎯 Current Focus Task:", ["General Deep Work"] + all_tasks_flat, key="sidebar_focus_task")
-    # Sync selectbox to active_mission (EKT tab can also set this directly)
-    if not st.session_state.get('timer_running'):
+    # Sync selectbox → active_mission only when no EKT item is active and timer isn't running
+    _ekt_focused = bool(st.session_state.get("ekt_active_item", {}).get("id"))
+    if not st.session_state.get('timer_running') and not _ekt_focused:
         st.session_state.active_mission = selected_mission
+
+    # Show active Committee Feedback item when one is selected
+    _active_ekt = st.session_state.get("ekt_active_item", {})
+    if _active_ekt.get("id"):
+        _eid  = _active_ekt.get("id", "")
+        _esec = _active_ekt.get("section", "General")
+        _erev = _active_ekt.get("reviewer", "")
+        _atype_label = {"quick_fix": "⚡ Quick Fix", "clarification": "💬 Clarification",
+                        "substantive": "📝 Substantive", "major": "🏗️ Major"}.get(_active_ekt.get("action_type", ""), "📋")
+        st.markdown(
+            f'<div style="background:#1a1a2e;border-left:3px solid #5C4A1E;border-radius:6px;'
+            f'padding:8px 12px;color:#f0e6c8;font-size:0.8rem;margin-top:4px;">'
+            f'<b style="color:#f1c40f;">📋 Active Feedback:</b><br>'
+            f'<b>{_eid}</b> — {_esec}<br>'
+            f'<span style="color:#aaa;font-size:0.75rem;">{_erev} · {_atype_label}</span>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
 
     @st.fragment(run_every="1s")
     def sidebar_pomodoro():
@@ -1917,7 +2051,7 @@ st.markdown("\n\n".join(_msg_lines))
 st.divider()
 
 t3, t4, t5, t6, t7, t8 = st.tabs([
-    "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review", "🧠 Mind Map", "🎯 Focus", "🦇 EKT Hit List"
+    "🎁 Rewards & Analytics", "📜 Writing Guide", "🎓 Comps Review", "🧠 Mind Map", "🎯 Focus", "📋 Committee Feedback"
 ])
 
 # ── TAB 3: REWARDS & ANALYTICS ─────────────
@@ -3596,10 +3730,10 @@ Today's drafts:
             with st.expander("📋 Last Update"):
                 st.write(st.session_state["latest_daily_update"])
 
-# ── TAB 8: EKT HIT LIST ────────────────────
+# ── TAB 8: COMMITTEE FEEDBACK ────────────────────
 with t8:
-    st.header("🦇 EKT Hit List")
-    st.caption("Committee feedback (Emily + Emma Tsui) — work through them one by one, earn XP for each.")
+    st.header("📋 Committee Feedback")
+    st.caption("Emily + Emma Tsui — work through items one by one, earn XP for each.")
 
     # Build Emily items — lab_context inline comments + structured draft feedback
     _emily_ekt_items = []
@@ -4032,12 +4166,17 @@ with t8:
                     st.session_state.coach_messages = []
 
             # Always keep ekt_active_item pointing at the currently displayed item
-            # and sync the sidebar Robin mission to match its action_type
+            # and sync the sidebar Robin mission + active_mission to match
             if st.session_state.get("ekt_active_item", {}).get("id") != _item.get("id"):
                 st.session_state.ekt_active_item = _item
                 _atype = _item.get("action_type", "")
                 if _atype in EKT_MISSION_MAP:
                     st.session_state.robin_active_mission = EKT_MISSION_MAP[_atype]
+                # Drive sidebar "Current Focus Task" label via active_mission
+                if not st.session_state.get("timer_running"):
+                    _mid = _item.get("id", "")
+                    _msec = _item.get("section", "General")
+                    st.session_state.active_mission = f"{_mid}: {_msec}"
 
             _nav_col1, _nav_col2, _nav_col3 = st.columns([1, 4, 1])
             if _nav_col1.button("⬅️ Prev", key="ekt_prev", use_container_width=True):
