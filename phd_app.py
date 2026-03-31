@@ -3005,6 +3005,16 @@ Be direct, specific, doctoral-level. Keep responses concise — this is a sideba
             def _build_coach_pdf(log):
                 from fpdf import FPDF
                 from io import BytesIO
+                import unicodedata
+
+                def _safe(text):
+                    """Strip/replace characters that Latin-1 fonts can't encode."""
+                    if not text:
+                        return ""
+                    # Normalize to decomposed form, then re-compose what we can
+                    text = unicodedata.normalize("NFKD", text)
+                    return text.encode("latin-1", errors="replace").decode("latin-1")
+
                 pdf = FPDF()
                 pdf.set_auto_page_break(auto=True, margin=15)
                 pdf.add_page()
@@ -3013,16 +3023,16 @@ Be direct, specific, doctoral-level. Keep responses concise — this is a sideba
                 pdf.ln(4)
                 for entry in log:
                     pdf.set_font("Helvetica", "B", 11)
-                    header = f"{entry['date']}  |  {entry['section']}"
+                    header = _safe(f"{entry['date']}  |  {entry['section']}")
                     pdf.cell(0, 8, header, ln=True)
                     pdf.set_font("Helvetica", "B", 10)
                     pdf.cell(0, 6, "You:", ln=True)
                     pdf.set_font("Helvetica", "", 10)
-                    pdf.multi_cell(0, 5, entry["question"])
+                    pdf.multi_cell(0, 5, _safe(entry["question"]))
                     pdf.set_font("Helvetica", "B", 10)
                     pdf.cell(0, 6, "Robin:", ln=True)
                     pdf.set_font("Helvetica", "", 10)
-                    pdf.multi_cell(0, 5, entry["answer"])
+                    pdf.multi_cell(0, 5, _safe(entry["answer"]))
                     pdf.ln(4)
                     pdf.set_draw_color(200, 200, 200)
                     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
