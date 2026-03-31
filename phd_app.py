@@ -409,6 +409,212 @@ if not st.session_state.authenticated:
   }
   requestAnimationFrame(advancePlane);
 
+  // ── Batmobile ──────────────────────────────────────────
+  // Drives back and forth along the bottom of the screen
+  if (!pdoc.getElementById('batmobile-wrap')) {
+    var BW = 160, BH = 56;   // bounding box of the SVG
+    var roadY = H - 70;       // vertical position (sits on "road")
+    var bmX   = -BW;
+    var bmDir = 1;            // 1 = right, -1 = left
+    var bmSpd = 220;          // px/s
+
+    var bmWrap = pdoc.createElement('div');
+    bmWrap.id = 'batmobile-wrap';
+    bmWrap.style.cssText = 'position:fixed;pointer-events:none;z-index:3;';
+
+    // SVG — classic elongated Batmobile silhouette
+    var bmSvg = pdoc.createElementNS(ns,'svg');
+    bmSvg.setAttribute('viewBox','0 0 160 56');
+    bmSvg.style.cssText = 'width:'+BW+'px;height:'+BH+'px;filter:drop-shadow(0 2px 6px rgba(241,196,15,0.4));';
+
+    // Exhaust glow (rear)
+    var exGlow = pdoc.createElementNS(ns,'ellipse');
+    exGlow.setAttribute('cx','16'); exGlow.setAttribute('cy','36');
+    exGlow.setAttribute('rx','10'); exGlow.setAttribute('ry','5');
+    exGlow.setAttribute('fill','rgba(241,120,15,0.55)');
+    bmSvg.appendChild(exGlow);
+
+    // Main body — low, sleek wedge
+    var body = pdoc.createElementNS(ns,'polygon');
+    body.setAttribute('points','14,38 28,20 55,14 95,12 128,16 148,24 152,38');
+    body.setAttribute('fill','#1a1a1a');
+    bmSvg.appendChild(body);
+
+    // Canopy / cockpit bubble
+    var canopy = pdoc.createElementNS(ns,'ellipse');
+    canopy.setAttribute('cx','90'); canopy.setAttribute('cy','18');
+    canopy.setAttribute('rx','26'); canopy.setAttribute('ry','9');
+    canopy.setAttribute('fill','#111');
+    canopy.setAttribute('stroke','#333'); canopy.setAttribute('stroke-width','1');
+    bmSvg.appendChild(canopy);
+
+    // Canopy highlight
+    var cHigh = pdoc.createElementNS(ns,'ellipse');
+    cHigh.setAttribute('cx','88'); cHigh.setAttribute('cy','15');
+    cHigh.setAttribute('rx','16'); cHigh.setAttribute('ry','4');
+    cHigh.setAttribute('fill','rgba(180,220,255,0.12)');
+    bmSvg.appendChild(cHigh);
+
+    // Tail fin — swept back
+    var fin = pdoc.createElementNS(ns,'polygon');
+    fin.setAttribute('points','14,38 22,20 35,14 28,38');
+    fin.setAttribute('fill','#222');
+    bmSvg.appendChild(fin);
+
+    // Rear secondary fin
+    var fin2 = pdoc.createElementNS(ns,'polygon');
+    fin2.setAttribute('points','14,38 18,28 26,22 22,38');
+    fin2.setAttribute('fill','#2a2a2a');
+    bmSvg.appendChild(fin2);
+
+    // Nose scoop
+    var scoop = pdoc.createElementNS(ns,'polygon');
+    scoop.setAttribute('points','148,24 160,28 160,36 148,36');
+    scoop.setAttribute('fill','#111');
+    bmSvg.appendChild(scoop);
+
+    // Headlight
+    var hlight = pdoc.createElementNS(ns,'ellipse');
+    hlight.setAttribute('cx','152'); hlight.setAttribute('cy','30');
+    hlight.setAttribute('rx','5'); hlight.setAttribute('ry','3');
+    hlight.setAttribute('fill','rgba(255,240,180,0.9)');
+    bmSvg.appendChild(hlight);
+
+    // Headlight beam
+    var beam = pdoc.createElementNS(ns,'polygon');
+    beam.setAttribute('points','157,28 200,18 200,42 157,32');
+    beam.setAttribute('fill','rgba(255,240,180,0.06)');
+    bmSvg.appendChild(beam);
+
+    // Gold trim line along top of body
+    var trim = pdoc.createElementNS(ns,'polyline');
+    trim.setAttribute('points','30,20 55,14 95,12 128,16 148,24');
+    trim.setAttribute('fill','none');
+    trim.setAttribute('stroke','#f1c40f'); trim.setAttribute('stroke-width','1.2');
+    trim.setAttribute('opacity','0.7');
+    bmSvg.appendChild(trim);
+
+    // Wheels (two visible — rear and front)
+    [[38,42,12], [118,42,12]].forEach(function(w){
+      var wc = pdoc.createElementNS(ns,'circle');
+      wc.setAttribute('cx',w[0]); wc.setAttribute('cy',w[1]); wc.setAttribute('r',w[2]);
+      wc.setAttribute('fill','#111'); wc.setAttribute('stroke','#333'); wc.setAttribute('stroke-width','2');
+      bmSvg.appendChild(wc);
+      // Wheel hub
+      var hub = pdoc.createElementNS(ns,'circle');
+      hub.setAttribute('cx',w[0]); hub.setAttribute('cy',w[1]); hub.setAttribute('r',5);
+      hub.setAttribute('fill','#2a2a2a'); hub.setAttribute('stroke','#f1c40f'); hub.setAttribute('stroke-width','0.8');
+      bmSvg.appendChild(hub);
+    });
+
+    // Wheel glow rings (animated via JS)
+    var wGlow1 = pdoc.createElementNS(ns,'circle');
+    wGlow1.setAttribute('cx','38'); wGlow1.setAttribute('cy','42'); wGlow1.setAttribute('r','13');
+    wGlow1.setAttribute('fill','none'); wGlow1.setAttribute('stroke','rgba(241,196,15,0.3)'); wGlow1.setAttribute('stroke-width','2');
+    bmSvg.appendChild(wGlow1);
+    var wGlow2 = pdoc.createElementNS(ns,'circle');
+    wGlow2.setAttribute('cx','118'); wGlow2.setAttribute('cy','42'); wGlow2.setAttribute('r','13');
+    wGlow2.setAttribute('fill','none'); wGlow2.setAttribute('stroke','rgba(241,196,15,0.3)'); wGlow2.setAttribute('stroke-width','2');
+    bmSvg.appendChild(wGlow2);
+
+    bmWrap.appendChild(bmSvg);
+    pdoc.body.appendChild(bmWrap);
+
+    // Road line (subtle)
+    var road = pdoc.createElement('div');
+    road.style.cssText = 'position:fixed;bottom:62px;left:0;width:100%;height:1px;'
+      +'background:linear-gradient(90deg,transparent,rgba(100,120,160,0.25) 15%,rgba(100,120,160,0.25) 85%,transparent);'
+      +'pointer-events:none;z-index:2;';
+    pdoc.body.appendChild(road);
+
+    var bmLastTs = null, glowPhase = 0;
+    var bmVel = bmSpd;          // current velocity (px/s, signed)
+    var keys = {};              // track held keys
+    var ACCEL = 600, DECEL = 380, MAX_SPD = 520, TURBO = 900;
+    var turboActive = false, turboTimer = 0;
+
+    // Key listeners on parent window
+    pw.addEventListener('keydown', function(e) {
+      keys[e.key] = true;
+      // Turbo: Up arrow or Shift
+      if (e.key === 'ArrowUp' || e.key === 'Shift') {
+        turboActive = true; turboTimer = 0.6;
+        exGlow.setAttribute('fill','rgba(241,80,15,0.9)');
+      }
+      e.preventDefault && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].indexOf(e.key) > -1 && e.preventDefault();
+    });
+    pw.addEventListener('keyup', function(e) { keys[e.key] = false; if (e.key === 'ArrowUp' || e.key === 'Shift') turboActive = false; });
+
+    function driveBatmobile(ts) {
+      if (!bmLastTs) bmLastTs = ts;
+      var dt = Math.min((ts - bmLastTs) / 1000, 0.05);
+      bmLastTs = ts;
+
+      var sw = pw.innerWidth || 1440;
+      var maxSpd = (turboActive ? TURBO : MAX_SPD);
+
+      // Turbo decay
+      if (turboActive) { turboTimer -= dt; if (turboTimer <= 0) { turboActive = false; } }
+
+      if (keys['ArrowRight']) {
+        bmVel = Math.min(bmVel + ACCEL * dt, maxSpd);
+      } else if (keys['ArrowLeft']) {
+        bmVel = Math.max(bmVel - ACCEL * dt, -maxSpd);
+      } else {
+        // Coast to a stop
+        if (bmVel > 0) bmVel = Math.max(0, bmVel - DECEL * dt);
+        else if (bmVel < 0) bmVel = Math.min(0, bmVel + DECEL * dt);
+        // Auto-cruise when player isn't touching keys (gentle default drift)
+        if (bmVel === 0) bmVel = bmDir * 80;
+      }
+
+      bmX += bmVel * dt;
+      if (bmVel > 0) bmDir = 1;
+      else if (bmVel < 0) bmDir = -1;
+
+      // Bounce off edges
+      if (bmX > sw + 20)   { bmX = sw + 20;  bmVel = -Math.abs(bmVel) * 0.6; bmDir = -1; }
+      if (bmX < -BW - 20)  { bmX = -BW - 20; bmVel =  Math.abs(bmVel) * 0.6; bmDir =  1; }
+
+      // Flip SVG for direction
+      bmSvg.style.transform = bmDir === -1 ? 'scaleX(-1)' : 'scaleX(1)';
+      bmWrap.style.left = bmX + 'px';
+      bmWrap.style.top  = (H - BH - 28) + 'px';
+
+      // Wheel glow spins faster at higher speed
+      var speedFrac = Math.abs(bmVel) / MAX_SPD;
+      glowPhase += dt * (2 + speedFrac * 8);
+      var gAlpha = (0.1 + 0.35 * Math.abs(Math.sin(glowPhase))).toFixed(2);
+      wGlow1.setAttribute('stroke', 'rgba(241,196,15,' + gAlpha + ')');
+      wGlow2.setAttribute('stroke', 'rgba(241,196,15,' + gAlpha + ')');
+
+      // Exhaust — bigger flame at turbo
+      var exR = turboActive ? 241 : 241;
+      var exG = turboActive ? 60  : 120;
+      var exAlpha = turboActive
+        ? (0.7 + 0.25 * Math.abs(Math.sin(glowPhase * 4))).toFixed(2)
+        : (0.25 + 0.2 * Math.abs(Math.sin(glowPhase * 2.3))).toFixed(2);
+      exGlow.setAttribute('fill', 'rgba('+exR+','+exG+',15,' + exAlpha + ')');
+      exGlow.setAttribute('rx', turboActive ? '18' : '10');
+
+      // Speed hint on first interaction
+      if (!pw._bmHintShown) {
+        pw._bmHintShown = true;
+        var hint = pdoc.createElement('div');
+        hint.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);'
+          +'color:rgba(241,196,15,0.5);font-family:monospace;font-size:0.72rem;letter-spacing:0.1em;'
+          +'pointer-events:none;z-index:10;transition:opacity 2s;';
+        hint.textContent = '← → drive   ↑ turbo';
+        pdoc.body.appendChild(hint);
+        setTimeout(function(){ hint.style.opacity='0'; }, 3500);
+        setTimeout(function(){ hint.remove(); }, 5600);
+      }
+
+      if (pdoc.getElementById('batmobile-wrap')) requestAnimationFrame(driveBatmobile);
+    }
+    requestAnimationFrame(driveBatmobile);
+  }
+
 })();
 </script>
 """, height=0)
