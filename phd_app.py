@@ -850,7 +850,7 @@ def load_all_progress():
         d = db.find_one({"_id": "main"})
 
         if not d:
-            return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}
+            return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}, {}, {}
 
         return (d.get("xp", 0),
         set(d.get("completed_tasks", [])),
@@ -866,11 +866,13 @@ def load_all_progress():
         d.get("section_timers", {}),
         d.get("active_timer", {}),
         d.get("race", {}),
-        d.get("daily_briefing", {})
+        d.get("daily_briefing", {}),
+        d.get("synonym_cache", {}),
+        d.get("briefing_cache", {})
         )
     except Exception as e:
         st.error(f"MongoDB connection error: {e}")
-        return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}
+        return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}, {}, {}
 
 
 def save_all_progress():
@@ -909,6 +911,8 @@ def save_all_progress():
                 "best_streak": st.session_state.get("race_best_streak", 0),
             },
             "daily_briefing": st.session_state.get("daily_briefing", {}),
+            "synonym_cache": st.session_state.get("synonym_cache", {}),
+            "briefing_cache": st.session_state.get("briefing_cache", {}),
         }
         db.replace_one({"_id": "main"}, data, upsert=True)
     except Exception as e:
@@ -966,7 +970,7 @@ def generate_daily_briefing():
 # 2. INITIALIZATION
 # ─────────────────────────────────────────────
 if 'initialized' not in st.session_state:
-    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers, active_timer, race_state, daily_briefing = load_all_progress()
+    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers, active_timer, race_state, daily_briefing, synonym_cache, briefing_cache = load_all_progress()
     st.session_state.xp = xp
     st.session_state.completed_tasks = comp_tasks
     st.session_state.saved_responses = resps
@@ -1032,6 +1036,8 @@ if 'initialized' not in st.session_state:
     if 'noir_mode' not in st.session_state:
         st.session_state.noir_mode = False
     st.session_state.daily_briefing = daily_briefing
+    st.session_state.synonym_cache = synonym_cache
+    st.session_state.briefing_cache = briefing_cache
     st.session_state.initialized = True
 
 # Celebration state — read ONCE at top of render, then reset so they don't replay next run
@@ -2389,7 +2395,17 @@ with st.sidebar:
                         unsafe_allow_html=True
                     )
             else:
-                if st.button("🦇 AI Synonyms", use_container_width=True, key="ai_syn_btn"):
+                _syn_cache = st.session_state.get("synonym_cache", {})
+                _cached_syn = _syn_cache.get(word_lower)
+                if _cached_syn:
+                    st.markdown(
+                        f'<div style="background:#1a1a2e;border-left:2px solid #f1c40f;'
+                        f'padding:8px 12px;border-radius:6px;color:#f0e6c8;font-size:0.83rem;">'
+                        f'{_cached_syn}</div>',
+                        unsafe_allow_html=True
+                    )
+                    st.caption("📦 From cache")
+                elif st.button("🦇 AI Synonyms", use_container_width=True, key="ai_syn_btn"):
                     with st.spinner("Finding alternatives..."):
                         try:
                             import anthropic
@@ -2397,16 +2413,19 @@ with st.sidebar:
                             message = client.messages.create(
                                 model="claude-sonnet-4-20250514",
                                 max_tokens=200,
-                                messages=[{"role": "user", "content": f"""Give 6 academic synonyms for "{word_input}" suitable for a public health dissertation. 
+                                messages=[{"role": "user", "content": f"""Give 6 academic synonyms for "{word_input}" suitable for a public health dissertation.
 Return ONLY a numbered list, no explanation:
 1. word — brief context note
 2. word — brief context note
 ...etc"""}]
                             )
+                            _syn_text = message.content[0].text
+                            st.session_state.setdefault("synonym_cache", {})[word_lower] = _syn_text
+                            save_all_progress()
                             st.markdown(
                                 f'<div style="background:#1a1a2e;border-left:2px solid #f1c40f;'
                                 f'padding:8px 12px;border-radius:6px;color:#f0e6c8;font-size:0.83rem;">'
-                                f'{message.content[0].text}</div>',
+                                f'{_syn_text}</div>',
                                 unsafe_allow_html=True
                             )
                         except Exception as e:
@@ -2767,70 +2786,82 @@ drawClock();
 
         # Auto-generate intro when entering a new section or EKT item
         if st.session_state.walkthrough_introduced != wt_idx:
-            with st.spinner("🐦 Robin is preparing your mission briefing..."):
-                try:
-                    import anthropic
-                    client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+            _ekt_item = st.session_state.get("ekt_active_item", {})
+            _brief_key = f"ekt:{_ekt_item.get('id')}" if _ekt_item and _ekt_item.get("feedback") else f"section:{current_wt_sec}"
+            _cached_brief = st.session_state.get("briefing_cache", {}).get(_brief_key)
 
-                    _ekt_item = st.session_state.get("ekt_active_item", {})
+            if _cached_brief:
+                st.session_state.coach_messages = [{"role": "assistant", "content": _cached_brief}]
+                st.session_state.coach_messages_by_idx[wt_idx] = st.session_state.coach_messages
+                st.session_state.walkthrough_introduced = wt_idx
+                st.rerun()
+            else:
+                with st.spinner("🐦 Robin is preparing your mission briefing..."):
+                    try:
+                        import anthropic
+                        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-                    if _ekt_item and _ekt_item.get("feedback"):
-                        # EKT item mode — brief on the specific task in front of the student
-                        _intro_prompt = (
-                            f"You are Robin — loyal sidekick to the Caped Candidate, who is a PhD student fighting to finish their dissertation. "
-                            f"You are smart, eager, and fully briefed on the mission. You speak with energy and loyalty — "
-                            f"you believe in the Caped Candidate completely and your job is to keep them moving forward. "
-                            f"The Caped Candidate is currently facing this specific committee feedback item:\n\n"
-                            f"ID: {_ekt_item.get('id', '?')}\n"
-                            f"Section: {_ekt_item.get('section', '?')}\n"
-                            f"Paper: {_ekt_item.get('paper', '?')}\n"
-                            f"Triage: {_ekt_item.get('action_type', '?')} | Priority: {_ekt_item.get('priority', '?')} | "
-                            f"Est. time: ~{_ekt_item.get('estimated_minutes', '?')} min\n"
-                            f"Reviewer: {_ekt_item.get('reviewer', '?')}\n\n"
-                            f"Feedback comment:\n\"{_ekt_item.get('feedback', '')}\"\n\n"
-                            f"Brief the Caped Candidate in 3-5 sentences: explain exactly what this feedback is asking for, "
-                            f"give one concrete first step to address it, and flag any watch-outs. "
-                            f"Sound like Robin reporting to the Caped Candidate — sharp, loyal, ready for action. Keep it brief — this is a sidebar."
+                        _ekt_item = st.session_state.get("ekt_active_item", {})
+
+                        if _ekt_item and _ekt_item.get("feedback"):
+                            # EKT item mode — brief on the specific task in front of the student
+                            _intro_prompt = (
+                                f"You are Robin — loyal sidekick to the Caped Candidate, who is a PhD student fighting to finish their dissertation. "
+                                f"You are smart, eager, and fully briefed on the mission. You speak with energy and loyalty — "
+                                f"you believe in the Caped Candidate completely and your job is to keep them moving forward. "
+                                f"The Caped Candidate is currently facing this specific committee feedback item:\n\n"
+                                f"ID: {_ekt_item.get('id', '?')}\n"
+                                f"Section: {_ekt_item.get('section', '?')}\n"
+                                f"Paper: {_ekt_item.get('paper', '?')}\n"
+                                f"Triage: {_ekt_item.get('action_type', '?')} | Priority: {_ekt_item.get('priority', '?')} | "
+                                f"Est. time: ~{_ekt_item.get('estimated_minutes', '?')} min\n"
+                                f"Reviewer: {_ekt_item.get('reviewer', '?')}\n\n"
+                                f"Feedback comment:\n\"{_ekt_item.get('feedback', '')}\"\n\n"
+                                f"Brief the Caped Candidate in 3-5 sentences: explain exactly what this feedback is asking for, "
+                                f"give one concrete first step to address it, and flag any watch-outs. "
+                                f"Sound like Robin reporting to the Caped Candidate — sharp, loyal, ready for action. Keep it brief — this is a sidebar."
+                            )
+                        else:
+                            # Section walkthrough mode
+                            _fb_items = [
+                                {"reviewer": "Emily", "feedback": c["comment"],
+                                 "priority": "high", "action_type": "substantive"}
+                                for tid, c in lab_context.items()
+                                if current_wt_sec in task_to_sections.get(tid, [])
+                            ]
+                            _fb_items += [i for i in st.session_state.get("comps_feedback_cache", []) if i.get("section") == current_wt_sec]
+                            _fb_ctx = "\n".join(
+                                f"- [{i.get('reviewer','?')}] ({i.get('priority','?')} priority, ~{i.get('estimated_minutes','?')}min) {i.get('feedback','')}"
+                                for i in _fb_items
+                            ) or "No specific feedback items found."
+                            _draft = st.session_state.saved_responses.get(f"focus_draft_{current_wt_sec}", "")
+                            _draft_preview = ("Their current draft:\n" + _draft[:300]) if _draft else "No draft written yet."
+                            _intro_prompt = (
+                                f"You are Robin — loyal sidekick to the Caped Candidate, who is a PhD student fighting to finish their dissertation. "
+                                f"You are smart, eager, fully briefed on every section, and completely devoted to helping the Caped Candidate succeed. "
+                                f"The Caped Candidate has just arrived at a new section of their comps revisions. Brief them like a mission report.\n\n"
+                                f"Section: **{current_wt_sec}** ({wt_idx+1} of {len(_wt_sections)})\n\n"
+                                f"Committee feedback:\n{_fb_ctx}\n\n"
+                                f"{_draft_preview}\n\n"
+                                f"In 3-5 sentences: introduce this section, call out the 1-2 most critical feedback items to hit first, "
+                                f"and give one concrete first move. Sound like Robin reporting to the Caped Candidate — sharp, loyal, ready. "
+                                f"Keep it brief — this is a sidebar."
+                            )
+                        intro_response = client.messages.create(
+                            model="claude-sonnet-4-20250514",
+                            max_tokens=400,
+                            messages=[{"role": "user", "content": _intro_prompt}]
                         )
-                    else:
-                        # Section walkthrough mode
-                        _fb_items = [
-                            {"reviewer": "Emily", "feedback": c["comment"],
-                             "priority": "high", "action_type": "substantive"}
-                            for tid, c in lab_context.items()
-                            if current_wt_sec in task_to_sections.get(tid, [])
-                        ]
-                        _fb_items += [i for i in st.session_state.get("comps_feedback_cache", []) if i.get("section") == current_wt_sec]
-                        _fb_ctx = "\n".join(
-                            f"- [{i.get('reviewer','?')}] ({i.get('priority','?')} priority, ~{i.get('estimated_minutes','?')}min) {i.get('feedback','')}"
-                            for i in _fb_items
-                        ) or "No specific feedback items found."
-                        _draft = st.session_state.saved_responses.get(f"focus_draft_{current_wt_sec}", "")
-                        _draft_preview = ("Their current draft:\n" + _draft[:300]) if _draft else "No draft written yet."
-                        _intro_prompt = (
-                            f"You are Robin — loyal sidekick to the Caped Candidate, who is a PhD student fighting to finish their dissertation. "
-                            f"You are smart, eager, fully briefed on every section, and completely devoted to helping the Caped Candidate succeed. "
-                            f"The Caped Candidate has just arrived at a new section of their comps revisions. Brief them like a mission report.\n\n"
-                            f"Section: **{current_wt_sec}** ({wt_idx+1} of {len(_wt_sections)})\n\n"
-                            f"Committee feedback:\n{_fb_ctx}\n\n"
-                            f"{_draft_preview}\n\n"
-                            f"In 3-5 sentences: introduce this section, call out the 1-2 most critical feedback items to hit first, "
-                            f"and give one concrete first move. Sound like Robin reporting to the Caped Candidate — sharp, loyal, ready. "
-                            f"Keep it brief — this is a sidebar."
-                        )
-                    intro_response = client.messages.create(
-                        model="claude-sonnet-4-20250514",
-                        max_tokens=400,
-                        messages=[{"role": "user", "content": _intro_prompt}]
-                    )
-                    intro_text = intro_response.content[0].text
-                    st.session_state.coach_messages = [{"role": "assistant", "content": intro_text}]
-                    st.session_state.coach_messages_by_idx[wt_idx] = st.session_state.coach_messages
-                    st.session_state.walkthrough_introduced = wt_idx
-                    st.rerun()
-                except Exception as e:
-                    st.session_state.walkthrough_introduced = wt_idx
-                    st.error(f"Intro failed: {e}")
+                        intro_text = intro_response.content[0].text
+                        st.session_state.setdefault("briefing_cache", {})[_brief_key] = intro_text
+                        save_all_progress()
+                        st.session_state.coach_messages = [{"role": "assistant", "content": intro_text}]
+                        st.session_state.coach_messages_by_idx[wt_idx] = st.session_state.coach_messages
+                        st.session_state.walkthrough_introduced = wt_idx
+                        st.rerun()
+                    except Exception as e:
+                        st.session_state.walkthrough_introduced = wt_idx
+                        st.error(f"Intro failed: {e}")
 
     # ── Chat history ──
     for msg in st.session_state.coach_messages[-6:]:
@@ -3919,19 +3950,19 @@ with t5:
                 import anthropic
                 client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-                # Stable block: persona + section identity + content (static per section).
-                # Marked cacheable so switching feedback types on the same section
-                # only pays full input cost once.
-                _stable = f"""You are an expert dissertation committee member specializing in public health, aging, health policy, geriatrics, and disaster preparedness.
+                # Stable system prompt: persona + section identity + full content.
+                # Lives in `system` param so prompt caching activates (requires ≥1,024 tokens;
+                # section content easily clears that bar for any real draft).
+                _system = [{"type": "text", "text": f"""You are an expert dissertation committee member specializing in public health, aging, health policy, geriatrics, and disaster preparedness.
 
 Paper: {current_section['paper']}
 Section: {current_section['title']}
 
 Section content:
-\"\"\"{current_section['content']}\"\"\""""
+\"\"\"{current_section['content']}\"\"\"""", "cache_control": {"type": "ephemeral"}}]
 
-                # Dynamic block: changes with feedback type and user notes.
-                _dynamic = f"""{f'Student notes: {user_notes}' if user_notes else ''}
+                # User message: only what changes per request (feedback type + optional notes).
+                _user = f"""{f'Student notes: {user_notes}' if user_notes else ''}
 
 {feedback_prompts[feedback_type]}
 
@@ -3945,10 +3976,8 @@ Format your response with these headers:
                 message = client.messages.create(
                     model="claude-sonnet-4-20250514",
                     max_tokens=1500,
-                    messages=[{"role": "user", "content": [
-                        {"type": "text", "text": _stable, "cache_control": {"type": "ephemeral"}},
-                        {"type": "text", "text": _dynamic}
-                    ]}]
+                    system=_system,
+                    messages=[{"role": "user", "content": _user}]
                 )
 
                 feedback = message.content[0].text
