@@ -159,111 +159,255 @@ if not st.session_state.authenticated:
 
   pdoc.body.appendChild(svg);
 
-  // ── Animated plane ──
+  // ── Animated plane — shape-tracing skywriter ──
+  if (pdoc.getElementById('login-plane')) return;
+
+  var W = pw.innerWidth  || 1440;
+  var H = pw.innerHeight || 900;
+  var CX = W * 0.5;
+  var CY = H * 0.38;
+
   var planeWrap = pdoc.createElement('div');
   planeWrap.id = 'login-plane';
-  planeWrap.style.cssText = [
-    'position:fixed;top:0;left:0;width:100%;height:100%;',
-    'pointer-events:none;z-index:1;overflow:hidden;'
-  ].join('');
+  planeWrap.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2;';
 
-  // Plane SVG — side-profile silhouette
   var planeSvg = pdoc.createElementNS(ns,'svg');
   planeSvg.setAttribute('viewBox','0 0 120 40');
-  planeSvg.style.cssText = 'width:90px;height:30px;opacity:0.55;filter:drop-shadow(0 0 4px rgba(180,200,255,0.4));';
+  planeSvg.style.cssText = 'position:absolute;width:80px;height:27px;opacity:0.6;filter:drop-shadow(0 0 4px rgba(180,200,255,0.5));transform-origin:45px 20px;';
 
-  // Fuselage
   var fuse = pdoc.createElementNS(ns,'ellipse');
-  fuse.setAttribute('cx','55'); fuse.setAttribute('cy','20');
-  fuse.setAttribute('rx','45'); fuse.setAttribute('ry','7');
-  fuse.setAttribute('fill','#a0b4d0');
+  fuse.setAttribute('cx','55'); fuse.setAttribute('cy','20'); fuse.setAttribute('rx','45'); fuse.setAttribute('ry','7'); fuse.setAttribute('fill','#a0b4d0');
   planeSvg.appendChild(fuse);
-
-  // Nose cone
   var nose = pdoc.createElementNS(ns,'polygon');
-  nose.setAttribute('points','100,20 115,22 115,18');
-  nose.setAttribute('fill','#b8cce0');
+  nose.setAttribute('points','100,20 115,22 115,18'); nose.setAttribute('fill','#b8cce0');
   planeSvg.appendChild(nose);
-
-  // Tail fin
   var tail = pdoc.createElementNS(ns,'polygon');
-  tail.setAttribute('points','10,20 18,20 14,8');
-  tail.setAttribute('fill','#8898b8');
+  tail.setAttribute('points','10,20 18,20 14,8'); tail.setAttribute('fill','#8898b8');
   planeSvg.appendChild(tail);
-
-  // Main wing
   var wing = pdoc.createElementNS(ns,'polygon');
-  wing.setAttribute('points','50,20 70,20 80,32 40,32');
-  wing.setAttribute('fill','#8898b8');
+  wing.setAttribute('points','50,20 70,20 80,32 40,32'); wing.setAttribute('fill','#8898b8');
   planeSvg.appendChild(wing);
-
-  // Rear wing (stabiliser)
   var stab = pdoc.createElementNS(ns,'polygon');
-  stab.setAttribute('points','18,20 28,20 30,27 16,27');
-  stab.setAttribute('fill','#7888a8');
+  stab.setAttribute('points','18,20 28,20 30,27 16,27'); stab.setAttribute('fill','#7888a8');
   planeSvg.appendChild(stab);
-
-  // Window strip
   var wins = pdoc.createElementNS(ns,'rect');
-  wins.setAttribute('x','58'); wins.setAttribute('y','15');
-  wins.setAttribute('width','28'); wins.setAttribute('height','4');
-  wins.setAttribute('rx','2'); wins.setAttribute('fill','rgba(220,235,255,0.5)');
+  wins.setAttribute('x','58'); wins.setAttribute('y','15'); wins.setAttribute('width','28'); wins.setAttribute('height','4'); wins.setAttribute('rx','2'); wins.setAttribute('fill','rgba(220,235,255,0.5)');
   planeSvg.appendChild(wins);
 
   planeWrap.appendChild(planeSvg);
   pdoc.body.appendChild(planeWrap);
 
-  // Contrail canvas
   var trail = pdoc.createElement('canvas');
   trail.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
-  trail.width  = pw.innerWidth  || 1440;
-  trail.height = pw.innerHeight || 900;
+  trail.width = W; trail.height = H;
   pdoc.body.appendChild(trail);
   var tctx = trail.getContext('2d');
 
-  // Randomise starting position off-screen left, random altitude (upper half)
-  var planeX = -120;
-  var planeY = pw.innerHeight ? pw.innerHeight * (0.08 + Math.random() * 0.22) : 120;
-  var speed  = 0.55 + Math.random() * 0.35;   // px per ms  (~600-900px/s)
+  // ── Shape generators ──────────────────────────────────
+  function ptDist(a,b){ var dx=b.x-a.x,dy=b.y-a.y; return Math.sqrt(dx*dx+dy*dy); }
+  function lerp(a,b,t){ return a+(b-a)*t; }
+
+  // Densify a path so every segment is ≤ maxSeg px
+  function densify(pts, maxSeg) {
+    var out = [];
+    for (var i = 0; i < pts.length-1; i++) {
+      var p0=pts[i], p1=pts[i+1], d=ptDist(p0,p1), steps=Math.max(1,Math.ceil(d/maxSeg));
+      for (var j=0;j<steps;j++) out.push({x:lerp(p0.x,p1.x,j/steps), y:lerp(p0.y,p1.y,j/steps)});
+    }
+    out.push(pts[pts.length-1]);
+    return out;
+  }
+
+  function genHeart(cx,cy,sc) {
+    var pts=[],N=200;
+    for(var i=0;i<=N;i++){
+      var t=(i/N)*Math.PI*2-Math.PI;
+      pts.push({x:cx+sc*16*Math.pow(Math.sin(t),3),
+                y:cy-sc*(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))});
+    }
+    return densify(pts,4);
+  }
+
+  function genInfinity(cx,cy,a) {
+    var pts=[],N=200;
+    for(var i=0;i<=N;i++){
+      var t=(i/N)*Math.PI*2;
+      var d=1+Math.sin(t)*Math.sin(t);
+      pts.push({x:cx+a*Math.cos(t)/d, y:cy+a*0.5*Math.sin(2*t)/d});
+    }
+    return densify(pts,4);
+  }
+
+  function genStar(cx,cy,R,r) {
+    var raw=[],N=5;
+    for(var i=0;i<N;i++){
+      var a1=(i*2*Math.PI/N)-Math.PI/2, a2=((i+0.5)*2*Math.PI/N)-Math.PI/2;
+      raw.push({x:cx+R*Math.cos(a1),y:cy+R*Math.sin(a1)});
+      raw.push({x:cx+r*Math.cos(a2),y:cy+r*Math.sin(a2)});
+    }
+    raw.push(raw[0]);
+    return densify(raw,4);
+  }
+
+  function genBat(cx,cy,sc) {
+    // Simplified bat: two swept wing arcs, ears, body
+    var pts=[], N=50;
+    // Right wing arc
+    for(var i=0;i<=N;i++){
+      var t=(i/N)*Math.PI;
+      pts.push({x:cx+sc*(0.25+1.1*Math.sin(t)), y:cy+sc*(-0.3+0.65*Math.sin(2*t)-0.25*Math.cos(t))});
+    }
+    // Right ear
+    pts.push({x:cx+sc*0.38,y:cy-sc*0.85});
+    pts.push({x:cx+sc*0.52,y:cy-sc*1.25});
+    pts.push({x:cx+sc*0.22,y:cy-sc*0.95});
+    // Top centre
+    pts.push({x:cx,y:cy-sc*0.78});
+    // Left ear
+    pts.push({x:cx-sc*0.22,y:cy-sc*0.95});
+    pts.push({x:cx-sc*0.52,y:cy-sc*1.25});
+    pts.push({x:cx-sc*0.38,y:cy-sc*0.85});
+    // Left wing arc
+    for(var i=N;i>=0;i--){
+      var t=(i/N)*Math.PI;
+      pts.push({x:cx-sc*(0.25+1.1*Math.sin(t)), y:cy+sc*(-0.3+0.65*Math.sin(2*t)-0.25*Math.cos(t))});
+    }
+    pts.push(pts[0]);
+    return densify(pts,4);
+  }
+
+  function genCap(cx,cy,sc) {
+    // Mortarboard: flat square top + wide brim + tassel drop
+    var s=sc, pts=[];
+    // Brim (wide flat line)
+    pts.push({x:cx-s*1.5,y:cy});
+    pts.push({x:cx+s*1.5,y:cy});
+    // Right side down to cap top-right
+    pts.push({x:cx+s,y:cy});
+    pts.push({x:cx+s,y:cy+s*0.55});
+    pts.push({x:cx-s,y:cy+s*0.55});
+    pts.push({x:cx-s,y:cy});
+    // Back to brim centre, then tassel drop
+    pts.push({x:cx,y:cy});
+    pts.push({x:cx+s*0.35,y:cy});
+    pts.push({x:cx+s*0.35,y:cy+s*0.9});
+    pts.push({x:cx+s*0.55,y:cy+s*1.25});
+    // Swing back and close
+    pts.push({x:cx+s*0.35,y:cy+s*0.9});
+    pts.push({x:cx+s*0.35,y:cy});
+    pts.push({x:cx-s*1.5,y:cy});
+    return densify(pts,4);
+  }
+
+  // Build transit (fast straight-ish path between shapes)
+  function genTransit(from,to) {
+    var pts=[], N=30;
+    // Slight arc through the midpoint above both
+    var midX=(from.x+to.x)/2, midY=Math.min(from.y,to.y)-80;
+    for(var i=0;i<=N;i++){
+      var t=i/N;
+      // Quadratic bezier
+      var bx=lerp(lerp(from.x,midX,t),lerp(midX,to.x,t),t);
+      var by=lerp(lerp(from.y,midY,t),lerp(midY,to.y,t),t);
+      pts.push({x:bx,y:by});
+    }
+    return pts;
+  }
+
+  var sc = Math.min(W,H)*0.013;
+  var shapes = [
+    {pts:genHeart(CX,CY,sc),      r:255,g:120,b:150},
+    {pts:genBat(CX,CY,sc*7),      r:241,g:196,b: 15},
+    {pts:genStar(CX,CY,sc*13,sc*5.5), r:255,g:235,b:120},
+    {pts:genInfinity(CX,CY,sc*16),r:130,g:200,b:255},
+    {pts:genCap(CX,CY,sc*10),     r:160,g:235,b:185},
+  ];
+
+  var SHAPE_SPEED   = 95;   // px/s — slow deliberate skywriting
+  var TRANSIT_SPEED = 420;  // px/s — fast repositioning
+
+  var shapeIdx = 0, segIdx = 0, segT = 0;
+  var inTransit = false, transitPts = null;
   var trailDots = [];
-  var lastTime = null;
+  var planeX = shapes[0].pts[0].x;
+  var planeY = shapes[0].pts[0].y;
+  var planeAngle = 0;
+  var lastTs = null;
 
-  function animatePlane(ts) {
-    if (!lastTime) lastTime = ts;
-    var dt = ts - lastTime;
-    lastTime = ts;
-    planeX += speed * dt;
+  function currentPts(){ return inTransit ? transitPts : shapes[shapeIdx].pts; }
 
-    var sw = pw.innerWidth || 1440;
+  function startTransit(){
+    var nextIdx=(shapeIdx+1)%shapes.length;
+    var cur=currentPts(), from=cur[cur.length-1];
+    var to=shapes[nextIdx].pts[0];
+    transitPts=genTransit(from,to);
+    inTransit=true; segIdx=0; segT=0;
+    // Mark all current trail dots as fading
+    for(var i=0;i<trailDots.length;i++) trailDots[i].fading=true;
+  }
 
-    // Position the SVG plane
-    planeSvg.style.position = 'absolute';
-    planeSvg.style.left = planeX + 'px';
-    planeSvg.style.top  = (planeY - 15) + 'px';
+  function advancePlane(ts) {
+    if(!lastTs){ lastTs=ts; requestAnimationFrame(advancePlane); return; }
+    var dt=Math.min((ts-lastTs)/1000, 0.05);
+    lastTs=ts;
 
-    // Record contrail dot (trail tip = right edge of plane)
-    trailDots.push({x: planeX + 118, y: planeY, a: 0.45});
+    var pts=currentPts();
+    var speed=inTransit?TRANSIT_SPEED:SHAPE_SPEED;
+    var distLeft=speed*dt;
 
-    // Fade old dots
-    tctx.clearRect(0, 0, trail.width, trail.height);
-    for (var i = trailDots.length - 1; i >= 0; i--) {
-      var d = trailDots[i];
-      d.a -= 0.0008;
-      if (d.a <= 0) { trailDots.splice(i, 1); continue; }
+    while(distLeft>0){
+      if(segIdx>=pts.length-1){
+        // Reached end of segment list
+        if(inTransit){
+          shapeIdx=(shapeIdx+1)%shapes.length;
+          inTransit=false; segIdx=0; segT=0;
+          pts=currentPts();
+        } else {
+          startTransit(); pts=currentPts(); segIdx=0; segT=0;
+        }
+        break;
+      }
+      var p0=pts[segIdx], p1=pts[segIdx+1];
+      var seg=ptDist(p0,p1);
+      if(seg<0.5){ segIdx++; continue; }
+      var traveled=segT*seg, remaining=seg-traveled;
+      if(distLeft>=remaining){ distLeft-=remaining; segIdx++; segT=0; }
+      else { segT+=distLeft/seg; distLeft=0; }
+    }
+
+    if(segIdx<pts.length-1){
+      var p0=pts[segIdx],p1=pts[segIdx+1];
+      planeX=lerp(p0.x,p1.x,segT);
+      planeY=lerp(p0.y,p1.y,segT);
+      planeAngle=Math.atan2(p1.y-p0.y, p1.x-p0.x);
+    }
+
+    // Trail dots
+    if(!inTransit){
+      var sh=shapes[shapeIdx];
+      trailDots.push({x:planeX,y:planeY,a:0.72,fading:false,r:sh.r,g:sh.g,b:sh.b});
+    }
+
+    // Draw
+    tctx.clearRect(0,0,trail.width,trail.height);
+    for(var i=trailDots.length-1;i>=0;i--){
+      var d=trailDots[i];
+      if(d.fading) d.a-=0.004;
+      if(d.a<=0){ trailDots.splice(i,1); continue; }
       tctx.beginPath();
-      tctx.arc(d.x, d.y, 2.5, 0, Math.PI * 2);
-      tctx.fillStyle = 'rgba(180,210,255,' + d.a.toFixed(3) + ')';
+      tctx.arc(d.x,d.y,2.8,0,Math.PI*2);
+      tctx.fillStyle='rgba('+d.r+','+d.g+','+d.b+','+d.a.toFixed(3)+')';
       tctx.fill();
     }
 
-    if (planeX < sw + 140) {
-      requestAnimationFrame(animatePlane);
-    } else {
-      // Remove and restart after a pause
-      planeWrap.remove(); trail.remove();
-    }
+    // Plane position + rotation
+    planeSvg.style.left=(planeX-40)+'px';
+    planeSvg.style.top =(planeY-14)+'px';
+    planeSvg.style.transform='rotate('+(planeAngle*180/Math.PI)+'deg)';
+
+    requestAnimationFrame(advancePlane);
   }
-  requestAnimationFrame(animatePlane);
+  requestAnimationFrame(advancePlane);
 
 })();
 </script>
