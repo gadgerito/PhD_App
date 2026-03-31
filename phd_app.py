@@ -190,6 +190,8 @@ if 'initialized' not in st.session_state:
     except:
         st.session_state.comps_feedback_cache = []
 
+    if 'noir_mode' not in st.session_state:
+        st.session_state.noir_mode = False
     st.session_state.initialized = True
 
 # Celebration state — read ONCE at top of render, then reset so they don't replay next run
