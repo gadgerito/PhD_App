@@ -158,6 +158,113 @@ if not st.session_state.authenticated:
   svg.appendChild(ground);
 
   pdoc.body.appendChild(svg);
+
+  // ── Animated plane ──
+  var planeWrap = pdoc.createElement('div');
+  planeWrap.id = 'login-plane';
+  planeWrap.style.cssText = [
+    'position:fixed;top:0;left:0;width:100%;height:100%;',
+    'pointer-events:none;z-index:1;overflow:hidden;'
+  ].join('');
+
+  // Plane SVG — side-profile silhouette
+  var planeSvg = pdoc.createElementNS(ns,'svg');
+  planeSvg.setAttribute('viewBox','0 0 120 40');
+  planeSvg.style.cssText = 'width:90px;height:30px;opacity:0.55;filter:drop-shadow(0 0 4px rgba(180,200,255,0.4));';
+
+  // Fuselage
+  var fuse = pdoc.createElementNS(ns,'ellipse');
+  fuse.setAttribute('cx','55'); fuse.setAttribute('cy','20');
+  fuse.setAttribute('rx','45'); fuse.setAttribute('ry','7');
+  fuse.setAttribute('fill','#a0b4d0');
+  planeSvg.appendChild(fuse);
+
+  // Nose cone
+  var nose = pdoc.createElementNS(ns,'polygon');
+  nose.setAttribute('points','100,20 115,22 115,18');
+  nose.setAttribute('fill','#b8cce0');
+  planeSvg.appendChild(nose);
+
+  // Tail fin
+  var tail = pdoc.createElementNS(ns,'polygon');
+  tail.setAttribute('points','10,20 18,20 14,8');
+  tail.setAttribute('fill','#8898b8');
+  planeSvg.appendChild(tail);
+
+  // Main wing
+  var wing = pdoc.createElementNS(ns,'polygon');
+  wing.setAttribute('points','50,20 70,20 80,32 40,32');
+  wing.setAttribute('fill','#8898b8');
+  planeSvg.appendChild(wing);
+
+  // Rear wing (stabiliser)
+  var stab = pdoc.createElementNS(ns,'polygon');
+  stab.setAttribute('points','18,20 28,20 30,27 16,27');
+  stab.setAttribute('fill','#7888a8');
+  planeSvg.appendChild(stab);
+
+  // Window strip
+  var wins = pdoc.createElementNS(ns,'rect');
+  wins.setAttribute('x','58'); wins.setAttribute('y','15');
+  wins.setAttribute('width','28'); wins.setAttribute('height','4');
+  wins.setAttribute('rx','2'); wins.setAttribute('fill','rgba(220,235,255,0.5)');
+  planeSvg.appendChild(wins);
+
+  planeWrap.appendChild(planeSvg);
+  pdoc.body.appendChild(planeWrap);
+
+  // Contrail canvas
+  var trail = pdoc.createElement('canvas');
+  trail.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
+  trail.width  = pw.innerWidth  || 1440;
+  trail.height = pw.innerHeight || 900;
+  pdoc.body.appendChild(trail);
+  var tctx = trail.getContext('2d');
+
+  // Randomise starting position off-screen left, random altitude (upper half)
+  var planeX = -120;
+  var planeY = pw.innerHeight ? pw.innerHeight * (0.08 + Math.random() * 0.22) : 120;
+  var speed  = 0.55 + Math.random() * 0.35;   // px per ms  (~600-900px/s)
+  var trailDots = [];
+  var lastTime = null;
+
+  function animatePlane(ts) {
+    if (!lastTime) lastTime = ts;
+    var dt = ts - lastTime;
+    lastTime = ts;
+    planeX += speed * dt;
+
+    var sw = pw.innerWidth || 1440;
+
+    // Position the SVG plane
+    planeSvg.style.position = 'absolute';
+    planeSvg.style.left = planeX + 'px';
+    planeSvg.style.top  = (planeY - 15) + 'px';
+
+    // Record contrail dot (trail tip = right edge of plane)
+    trailDots.push({x: planeX + 118, y: planeY, a: 0.45});
+
+    // Fade old dots
+    tctx.clearRect(0, 0, trail.width, trail.height);
+    for (var i = trailDots.length - 1; i >= 0; i--) {
+      var d = trailDots[i];
+      d.a -= 0.0008;
+      if (d.a <= 0) { trailDots.splice(i, 1); continue; }
+      tctx.beginPath();
+      tctx.arc(d.x, d.y, 2.5, 0, Math.PI * 2);
+      tctx.fillStyle = 'rgba(180,210,255,' + d.a.toFixed(3) + ')';
+      tctx.fill();
+    }
+
+    if (planeX < sw + 140) {
+      requestAnimationFrame(animatePlane);
+    } else {
+      // Remove and restart after a pause
+      planeWrap.remove(); trail.remove();
+    }
+  }
+  requestAnimationFrame(animatePlane);
+
 })();
 </script>
 """, height=0)
