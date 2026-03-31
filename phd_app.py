@@ -76,11 +76,12 @@ def load_all_progress():
         d.get("last_worked_date", ""),
         d.get("notebook_entries", []),
         d.get("section_timers", {}),
-        d.get("active_timer", {})
+        d.get("active_timer", {}),
+        d.get("race", {})
         )
     except Exception as e:
         st.error(f"MongoDB connection error: {e}")
-        return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}
+        return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}
 
 
 def save_all_progress():
@@ -109,6 +110,15 @@ def save_all_progress():
                 "pause_start": pause_str,
                 "mission": st.session_state.get("active_mission", "")
             },
+            "race": {
+                "active": st.session_state.get("race_active", False),
+                "end_time": st.session_state.race_end_time.isoformat() if st.session_state.get("race_active") and st.session_state.get("race_end_time") else None,
+                "target": st.session_state.get("race_target", 5),
+                "completed": st.session_state.get("race_completed", 0),
+                "bonus": st.session_state.get("race_bonus", 0),
+                "streak": st.session_state.get("race_streak", 0),
+                "best_streak": st.session_state.get("race_best_streak", 0),
+            },
         }
         db.replace_one({"_id": "main"}, data, upsert=True)
     except Exception as e:
@@ -117,7 +127,7 @@ def save_all_progress():
 # 2. INITIALIZATION
 # ─────────────────────────────────────────────
 if 'initialized' not in st.session_state:
-    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers, active_timer = load_all_progress()
+    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers, active_timer, race_state = load_all_progress()
     st.session_state.xp = xp
     st.session_state.completed_tasks = comp_tasks
     st.session_state.saved_responses = resps
@@ -159,6 +169,27 @@ if 'initialized' not in st.session_state:
                 st.session_state.active_mission = active_timer.get("mission", "")
                 if active_timer.get("pause_start"):
                     st.session_state.pause_start = datetime.fromisoformat(active_timer["pause_start"])
+
+    # Restore race state if still within time window
+    if race_state.get("active"):
+        _rs_end_str = race_state.get("end_time")
+        if _rs_end_str:
+            _rs_end = datetime.fromisoformat(_rs_end_str)
+            if datetime.now() < _rs_end:
+                st.session_state.race_active = True
+                st.session_state.race_end_time = _rs_end
+                st.session_state.race_target = race_state.get("target", 5)
+                st.session_state.race_completed = race_state.get("completed", 0)
+                st.session_state.race_bonus = race_state.get("bonus", 0)
+                st.session_state.race_streak = race_state.get("streak", 0)
+                st.session_state.race_best_streak = race_state.get("best_streak", 0)
+
+    # Cache all comps_feedback once per session
+    try:
+        st.session_state.comps_feedback_cache = list(get_mongo_db()["comps_feedback"].find({}, {"_id": 0}))
+    except:
+        st.session_state.comps_feedback_cache = []
+
     st.session_state.initialized = True
 
 # Celebration state — read ONCE at top of render, then reset so they don't replay next run
@@ -1305,13 +1336,7 @@ Return ONLY a numbered list, no explanation:
             for tid, c in lab_context.items()
             if _clock_section in task_to_sections.get(tid, [])
         ]
-        _emma_ctx = []
-        try:
-            _emma_ctx = list(get_mongo_db()["comps_feedback"].find(
-                {"section": _clock_section}, {"_id": 0}
-            ))
-        except:
-            pass
+        _emma_ctx = [i for i in st.session_state.get("comps_feedback_cache", []) if i.get("section") == _clock_section]
         if _clock_reviewer in ("All", "Emily"):
             _clock_items += _emily_ctx
         if _clock_reviewer in ("All", "Emma Tsui"):
@@ -1555,6 +1580,8 @@ drawClock();
         st.session_state.walkthrough_introduced = -1
     if "coach_messages" not in st.session_state:
         st.session_state.coach_messages = []
+    if "coach_messages_by_idx" not in st.session_state:
+        st.session_state.coach_messages_by_idx = {}
 
     wt_active = st.session_state.walkthrough_active
     wt_idx = st.session_state.walkthrough_idx
@@ -1592,20 +1619,25 @@ drawClock();
 
         nav1, nav2, nav3 = st.columns(3)
         if nav1.button("◀ Prev", key="wt_prev", use_container_width=True, disabled=(wt_idx == 0)):
+            st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
             st.session_state.walkthrough_idx -= 1
-            st.session_state.coach_messages = []
-            st.session_state.walkthrough_introduced = -1
+            new_idx = st.session_state.walkthrough_idx
+            st.session_state.coach_messages = list(st.session_state.coach_messages_by_idx.get(new_idx, []))
+            st.session_state.walkthrough_introduced = new_idx if st.session_state.coach_messages else -1
             st.session_state.ekt_active_item = {}
-            st.session_state.focus_section_select = _wt_sections[st.session_state.walkthrough_idx]
+            st.session_state.focus_section_select = _wt_sections[new_idx]
             st.rerun()
         if nav2.button("Next ▶", key="wt_next", use_container_width=True, disabled=(wt_idx >= len(_wt_sections)-1)):
+            st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
             st.session_state.walkthrough_idx += 1
-            st.session_state.coach_messages = []
-            st.session_state.walkthrough_introduced = -1
+            new_idx = st.session_state.walkthrough_idx
+            st.session_state.coach_messages = list(st.session_state.coach_messages_by_idx.get(new_idx, []))
+            st.session_state.walkthrough_introduced = new_idx if st.session_state.coach_messages else -1
             st.session_state.ekt_active_item = {}
-            st.session_state.focus_section_select = _wt_sections[st.session_state.walkthrough_idx]
+            st.session_state.focus_section_select = _wt_sections[new_idx]
             st.rerun()
         if nav3.button("✖ End", key="wt_end", use_container_width=True):
+            st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
             st.session_state.walkthrough_active = False
             st.session_state.coach_messages = []
             st.rerun()
@@ -1645,12 +1677,7 @@ drawClock();
                             for tid, c in lab_context.items()
                             if current_wt_sec in task_to_sections.get(tid, [])
                         ]
-                        try:
-                            _fb_items += list(get_mongo_db()["comps_feedback"].find(
-                                {"section": current_wt_sec}, {"_id": 0}
-                            ))
-                        except:
-                            pass
+                        _fb_items += [i for i in st.session_state.get("comps_feedback_cache", []) if i.get("section") == current_wt_sec]
                         _fb_ctx = "\n".join(
                             f"- [{i.get('reviewer','?')}] ({i.get('priority','?')} priority, ~{i.get('estimated_minutes','?')}min) {i.get('feedback','')}"
                             for i in _fb_items
@@ -1675,6 +1702,7 @@ drawClock();
                     )
                     intro_text = intro_response.content[0].text
                     st.session_state.coach_messages = [{"role": "assistant", "content": intro_text}]
+                    st.session_state.coach_messages_by_idx[wt_idx] = st.session_state.coach_messages
                     st.session_state.walkthrough_introduced = wt_idx
                     st.rerun()
                 except Exception as e:
@@ -1721,10 +1749,7 @@ drawClock();
                         for tid, c in lab_context.items()
                         if _focus_sec in task_to_sections.get(tid, [])
                     ]
-                    try:
-                        _fb_items += list(get_mongo_db()["comps_feedback"].find({"section": _focus_sec}, {"_id": 0}))
-                    except:
-                        pass
+                    _fb_items += [i for i in st.session_state.get("comps_feedback_cache", []) if i.get("section") == _focus_sec]
                     _fb_ctx = "\n".join(f"- [{i.get('reviewer','?')}] {i.get('feedback','')}" for i in _fb_items)
                     _draft = st.session_state.saved_responses.get(f"focus_draft_{_focus_sec}", "")
 
@@ -1762,6 +1787,7 @@ Be direct, specific, doctoral-level. Keep responses concise — this is a sideba
                         messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.coach_messages[-10:]]
                     )
                     st.session_state.coach_messages.append({"role": "assistant", "content": response.content[0].text})
+                    st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
                     st.rerun()
                 except Exception as e:
                     st.error(f"Coach failed: {e}")
@@ -1889,12 +1915,8 @@ with t2:
     q3, s3 = random.choice(BATMAN_QUOTES)
     st.markdown(quote_box(q3, s3), unsafe_allow_html=True)
 
-    # ── Load Emma's feedback from MongoDB ──
-    emma_items = []
-    try:
-        emma_items = list(get_mongo_db()["comps_feedback"].find({}, {"_id": 0}))
-    except Exception as e:
-        st.warning(f"Could not load Emma's feedback: {e}")
+    # ── Load Emma's feedback from session cache ──
+    emma_items = list(st.session_state.get("comps_feedback_cache", []))
 
     # ── Build Emily's feedback mapped to sections ──
     emily_by_section = {}
@@ -2106,8 +2128,8 @@ with t3:
             )
     st.divider()
 
-    col_l, col_r = st.columns(2)
-    with col_l:
+    @st.fragment
+    def _rewards_list():
         st.subheader("🏆 Available Rewards")
         base_rewards = [
             {"xp": 100,  "item": "⚡ 15 min DC Comic Break"},
@@ -2130,6 +2152,10 @@ with t3:
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.write(f"🔒 **{r['xp']} XP**: {r['item']}")
+
+    col_l, col_r = st.columns(2)
+    with col_l:
+        _rewards_list()
 
     with col_r:
         st.subheader("📊 Focus Time Analytics")
@@ -3063,12 +3089,8 @@ Format your response with these headers:
         for tid, ctx in lab_context.items()
     ]
 
-    # Emma's feedback from MongoDB
-    emma_feedback = []
-    try:
-        emma_feedback = list(get_mongo_db()["comps_feedback"].find({"reviewer": "Emma Tsui"}, {"_id": 0}))
-    except Exception as e:
-        st.warning(f"Could not load Emma's feedback: {e}")
+    # Emma's feedback from session cache
+    emma_feedback = [i for i in st.session_state.get("comps_feedback_cache", []) if i.get("reviewer") == "Emma Tsui"]
 
     all_committee_feedback = []
     if reviewer_filter in ("All", "Emily"):
@@ -3536,12 +3558,8 @@ with t7:
     st.header("🎯 Focus Mode")
     st.caption("One section. All feedback. Full coach. No distractions.")
 
-    # Load Emma's feedback
-    focus_emma_items = []
-    try:
-        focus_emma_items = list(get_mongo_db()["comps_feedback"].find({}, {"_id": 0}))
-    except Exception as e:
-        st.warning(f"Could not load Emma's feedback: {e}")
+    # Load Emma's feedback from session cache
+    focus_emma_items = list(st.session_state.get("comps_feedback_cache", []))
 
     # Build section list from Emily + Emma
     focus_emily_by_section = {}
@@ -3769,15 +3787,11 @@ with t8:
     st.header("🦇 EKT Hit List")
     st.caption("Emma Tsui's feedback — work through them one by one, earn XP for each.")
 
-    # Load feedback from MongoDB
-    _ekt_items = []
-    try:
-        _ekt_items = list(get_mongo_db()["comps_feedback"].find(
-            {"reviewer": "Emma Tsui"},
-            {"_id": 0}
-        ).sort([("paper_num", 1), ("comment_id", 1)]))
-    except Exception as e:
-        st.warning(f"Could not load EKT feedback: {e}")
+    # Load feedback from session cache
+    _ekt_items = sorted(
+        [i for i in st.session_state.get("comps_feedback_cache", []) if i.get("reviewer") == "Emma Tsui"],
+        key=lambda x: (x.get("paper_num", 0), x.get("comment_id", 0))
+    )
 
     if _ekt_items:
         _ekt_pending = [f for f in _ekt_items if f.get("status") == "pending"]
@@ -4064,6 +4078,7 @@ with t8:
                     st.session_state.race_bonus = _race_bonus
                     st.session_state.race_streak = 0
                     st.session_state.race_best_streak = 0
+                    save_all_progress()
                     st.rerun()
         else:
             race_hud()
@@ -4096,6 +4111,36 @@ with t8:
         elif _ekt_status_filter == "Done":
             _filtered = [f for f in _filtered if f.get("status") != "pending"]
 
+        # Bulk complete
+        _bulk_pending = [f for f in _filtered if f.get("status") == "pending"]
+        if _bulk_pending:
+            with st.expander(f"⚡ Quick Complete — mark multiple done at once ({len(_bulk_pending)} pending)"):
+                _bulk_options = {f"{f['id']} — {f.get('section','')} ({f.get('action_type','')})": f for f in _bulk_pending}
+                _bulk_selected = st.multiselect("Select items to mark done:", list(_bulk_options.keys()), key="ekt_bulk_select")
+                if _bulk_selected and st.button("✅ Mark Selected Done", type="primary", key="ekt_bulk_submit"):
+                    _bulk_xp = 0
+                    try:
+                        for _label in _bulk_selected:
+                            _bitem = _bulk_options[_label]
+                            _bxp = _xp_per_type.get(_bitem.get("action_type", ""), 10)
+                            get_mongo_db()["comps_feedback"].update_one(
+                                {"id": _bitem["id"]},
+                                {"$set": {"status": "done", "completed_at": datetime.now()}}
+                            )
+                            for _cached in st.session_state.get("comps_feedback_cache", []):
+                                if _cached.get("id") == _bitem["id"]:
+                                    _cached["status"] = "done"
+                                    _cached["completed_at"] = datetime.now()
+                                    break
+                            _bulk_xp += _bxp
+                        st.session_state.xp += _bulk_xp
+                        st.session_state.celebration_xp = _bulk_xp
+                        save_all_progress()
+                        st.toast(f"🦇 +{_bulk_xp} XP! {len(_bulk_selected)} items done!", icon="🦇")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Bulk update failed: {e}")
+
         # Current item index
         if "ekt_current_idx" not in st.session_state:
             st.session_state.ekt_current_idx = 0
@@ -4115,13 +4160,10 @@ with t8:
                 if not sec:
                     return
                 _all_secs = list(SECTION_TASKS.keys())
-                try:
-                    _extra = list(get_mongo_db()["comps_feedback"].distinct("section"))
-                    for _s in _extra:
-                        if _s not in _all_secs:
-                            _all_secs.append(_s)
-                except:
-                    pass
+                _extra = list({i.get("section") for i in st.session_state.get("comps_feedback_cache", []) if i.get("section")})
+                for _s in _extra:
+                    if _s not in _all_secs:
+                        _all_secs.append(_s)
                 if sec in _all_secs:
                     st.session_state.walkthrough_idx = _all_secs.index(sec)
                     st.session_state.walkthrough_introduced = -1
@@ -4187,6 +4229,12 @@ with t8:
                             {"id": _item["id"]},
                             {"$set": {"status": "done", "completed_at": datetime.now()}}
                         )
+                        # Update session cache so other tabs see it immediately
+                        for _cached in st.session_state.get("comps_feedback_cache", []):
+                            if _cached.get("id") == _item["id"]:
+                                _cached["status"] = "done"
+                                _cached["completed_at"] = datetime.now()
+                                break
                         st.session_state.xp += _xp_reward
                         st.session_state.celebration_xp = _xp_reward
                         # Race the clock tracking
