@@ -3785,13 +3785,30 @@ Today's drafts:
 # ── TAB 8: EKT HIT LIST ────────────────────
 with t8:
     st.header("🦇 EKT Hit List")
-    st.caption("Emma Tsui's feedback — work through them one by one, earn XP for each.")
+    st.caption("Committee feedback (Emily + Emma Tsui) — work through them one by one, earn XP for each.")
 
-    # Load feedback from session cache
+    # Build Emily items from lab_context (status tracked via completed_tasks)
+    _emily_ekt_items = []
+    for _etid, _ectx in lab_context.items():
+        _esections = task_to_sections.get(_etid, [])
+        _emily_ekt_items.append({
+            "id": f"Emily-{_etid}",
+            "task_id": _etid,
+            "reviewer": "Emily",
+            "paper": "HBMC",
+            "section": _esections[0] if _esections else "General",
+            "feedback": _ectx["comment"],
+            "action_type": "substantive",
+            "priority": "high",
+            "estimated_minutes": 20,
+            "status": "done" if _etid in st.session_state.completed_tasks else "pending",
+        })
+
+    # Combine Emma (from cache) + Emily items
     _ekt_items = sorted(
         [i for i in st.session_state.get("comps_feedback_cache", []) if i.get("reviewer") == "Emma Tsui"],
         key=lambda x: (x.get("paper_num", 0), x.get("comment_id", 0))
-    )
+    ) + _emily_ekt_items
 
     if _ekt_items:
         _ekt_pending = [f for f in _ekt_items if f.get("status") == "pending"]
@@ -4086,7 +4103,7 @@ with t8:
         st.divider()
 
         # Filter controls
-        _ekt_col1, _ekt_col2, _ekt_col3 = st.columns(3)
+        _ekt_col1, _ekt_col2, _ekt_col3, _ekt_col4 = st.columns(4)
         _ekt_paper_filter = _ekt_col1.selectbox(
             "Paper:", ["All", "HBMC", "Climate", "Delphi", "SCPA", "General"],
             key="ekt_paper_filter"
@@ -4099,6 +4116,10 @@ with t8:
             "Status:", ["Pending", "Done", "All"],
             key="ekt_status_filter"
         )
+        _ekt_reviewer_filter = _ekt_col4.selectbox(
+            "Reviewer:", ["All", "Emma Tsui", "Emily"],
+            key="ekt_reviewer_filter"
+        )
 
         # Apply filters
         _filtered = _ekt_items
@@ -4110,6 +4131,8 @@ with t8:
             _filtered = [f for f in _filtered if f.get("status") == "pending"]
         elif _ekt_status_filter == "Done":
             _filtered = [f for f in _filtered if f.get("status") != "pending"]
+        if _ekt_reviewer_filter != "All":
+            _filtered = [f for f in _filtered if f.get("reviewer") == _ekt_reviewer_filter]
 
         # Bulk complete
         _bulk_pending = [f for f in _filtered if f.get("status") == "pending"]
@@ -4123,15 +4146,20 @@ with t8:
                         for _label in _bulk_selected:
                             _bitem = _bulk_options[_label]
                             _bxp = _xp_per_type.get(_bitem.get("action_type", ""), 10)
-                            get_mongo_db()["comps_feedback"].update_one(
-                                {"id": _bitem["id"]},
-                                {"$set": {"status": "done", "completed_at": datetime.now()}}
-                            )
-                            for _cached in st.session_state.get("comps_feedback_cache", []):
-                                if _cached.get("id") == _bitem["id"]:
-                                    _cached["status"] = "done"
-                                    _cached["completed_at"] = datetime.now()
-                                    break
+                            if _bitem.get("reviewer") == "Emily":
+                                _btid = _bitem.get("task_id")
+                                if _btid:
+                                    st.session_state.completed_tasks.add(_btid)
+                            else:
+                                get_mongo_db()["comps_feedback"].update_one(
+                                    {"id": _bitem["id"]},
+                                    {"$set": {"status": "done", "completed_at": datetime.now()}}
+                                )
+                                for _cached in st.session_state.get("comps_feedback_cache", []):
+                                    if _cached.get("id") == _bitem["id"]:
+                                        _cached["status"] = "done"
+                                        _cached["completed_at"] = datetime.now()
+                                        break
                             _bulk_xp += _bxp
                         st.session_state.xp += _bulk_xp
                         st.session_state.celebration_xp = _bulk_xp
@@ -4225,16 +4253,22 @@ with t8:
                 if _act_col1.button("✅ Mark Done — Earn XP!", key=f"ekt_done_{_item['id']}",
                                      type="primary", use_container_width=True):
                     try:
-                        get_mongo_db()["comps_feedback"].update_one(
-                            {"id": _item["id"]},
-                            {"$set": {"status": "done", "completed_at": datetime.now()}}
-                        )
-                        # Update session cache so other tabs see it immediately
-                        for _cached in st.session_state.get("comps_feedback_cache", []):
-                            if _cached.get("id") == _item["id"]:
-                                _cached["status"] = "done"
-                                _cached["completed_at"] = datetime.now()
-                                break
+                        if _item.get("reviewer") == "Emily":
+                            # Emily items tracked via completed_tasks
+                            _tid = _item.get("task_id")
+                            if _tid:
+                                st.session_state.completed_tasks.add(_tid)
+                        else:
+                            # Emma items tracked in MongoDB + cache
+                            get_mongo_db()["comps_feedback"].update_one(
+                                {"id": _item["id"]},
+                                {"$set": {"status": "done", "completed_at": datetime.now()}}
+                            )
+                            for _cached in st.session_state.get("comps_feedback_cache", []):
+                                if _cached.get("id") == _item["id"]:
+                                    _cached["status"] = "done"
+                                    _cached["completed_at"] = datetime.now()
+                                    break
                         st.session_state.xp += _xp_reward
                         st.session_state.celebration_xp = _xp_reward
                         # Race the clock tracking
@@ -4303,9 +4337,18 @@ with t8:
         # Stats section
         st.divider()
         st.subheader("📊 Breakdown")
-        _stats_col1, _stats_col2 = st.columns(2)
+        _stats_col1, _stats_col2, _stats_col3 = st.columns(3)
 
         with _stats_col1:
+            st.markdown("**By Reviewer:**")
+            for _rev, _rev_icon in [("Emma Tsui", "🦇"), ("Emily", "📋")]:
+                _rev_items = [f for f in _ekt_items if f.get("reviewer") == _rev]
+                _rev_done = [f for f in _rev_items if f.get("status") != "pending"]
+                if _rev_items:
+                    st.progress(len(_rev_done) / len(_rev_items),
+                                text=f"{_rev_icon} {_rev}: {len(_rev_done)}/{len(_rev_items)}")
+
+        with _stats_col2:
             st.markdown("**By Paper:**")
             for _paper in ["HBMC", "Climate", "Delphi", "SCPA", "General"]:
                 _paper_items = [f for f in _ekt_items if f.get("paper") == _paper]
@@ -4314,7 +4357,7 @@ with t8:
                     st.progress(len(_paper_done) / len(_paper_items),
                                 text=f"{_paper}: {len(_paper_done)}/{len(_paper_items)}")
 
-        with _stats_col2:
+        with _stats_col3:
             st.markdown("**By Type:**")
             for _atype, _icon in [("quick_fix", "⚡"), ("clarification", "💬"), ("substantive", "📝"), ("major", "🏗️")]:
                 _type_items = [f for f in _ekt_items if f.get("action_type") == _atype]
@@ -4323,7 +4366,7 @@ with t8:
                     st.progress(len(_type_done) / len(_type_items),
                                 text=f"{_icon} {_atype}: {len(_type_done)}/{len(_type_items)}")
     else:
-        st.info("No EKT feedback found in MongoDB. Run `insert_to_mongodb()` from `ekt_feedback_round2.py` first.")
+        st.info("No feedback items found.")
 
 # ── COMPS COACH FLOATING BUTTON ──────────────────────────────────────────────
 import anthropic as _anthropic
