@@ -198,6 +198,7 @@ if not st.session_state.authenticated:
   pdoc.body.appendChild(planeWrap);
 
   var trail = pdoc.createElement('canvas');
+  trail.id = 'login-plane-trail';
   trail.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
   trail.width = W; trail.height = H;
   pdoc.body.appendChild(trail);
@@ -409,210 +410,374 @@ if not st.session_state.authenticated:
   }
   requestAnimationFrame(advancePlane);
 
-  // ── Batmobile ──────────────────────────────────────────
-  // Drives back and forth along the bottom of the screen
+  // ── Batmobile Mini-Game ────────────────────────────────
   if (!pdoc.getElementById('batmobile-wrap')) {
-    var BW = 160, BH = 56;   // bounding box of the SVG
-    var roadY = H - 70;       // vertical position (sits on "road")
-    var bmX   = -BW;
-    var bmDir = 1;            // 1 = right, -1 = left
-    var bmSpd = 220;          // px/s
+    var BW = 160, BH = 56;
+    var LANE_Y = [H - BH - 28, H - BH - 82];  // lower, upper lanes
+    var bmX = W * 0.25;
 
+    // ── Build Batmobile SVG ──
     var bmWrap = pdoc.createElement('div');
     bmWrap.id = 'batmobile-wrap';
-    bmWrap.style.cssText = 'position:fixed;pointer-events:none;z-index:3;';
+    bmWrap.style.cssText = 'position:fixed;pointer-events:none;z-index:6;transition:top 0.18s ease;';
 
-    // SVG — classic elongated Batmobile silhouette
     var bmSvg = pdoc.createElementNS(ns,'svg');
     bmSvg.setAttribute('viewBox','0 0 160 56');
-    bmSvg.style.cssText = 'width:'+BW+'px;height:'+BH+'px;filter:drop-shadow(0 2px 6px rgba(241,196,15,0.4));';
+    bmSvg.style.cssText = 'width:'+BW+'px;height:'+BH+'px;filter:drop-shadow(0 2px 8px rgba(241,196,15,0.5));';
 
-    // Exhaust glow (rear)
     var exGlow = pdoc.createElementNS(ns,'ellipse');
-    exGlow.setAttribute('cx','16'); exGlow.setAttribute('cy','36');
-    exGlow.setAttribute('rx','10'); exGlow.setAttribute('ry','5');
-    exGlow.setAttribute('fill','rgba(241,120,15,0.55)');
+    exGlow.setAttribute('cx','16'); exGlow.setAttribute('cy','36'); exGlow.setAttribute('rx','10'); exGlow.setAttribute('ry','5'); exGlow.setAttribute('fill','rgba(241,120,15,0.55)');
     bmSvg.appendChild(exGlow);
-
-    // Main body — low, sleek wedge
     var body = pdoc.createElementNS(ns,'polygon');
-    body.setAttribute('points','14,38 28,20 55,14 95,12 128,16 148,24 152,38');
-    body.setAttribute('fill','#1a1a1a');
+    body.setAttribute('points','14,38 28,20 55,14 95,12 128,16 148,24 152,38'); body.setAttribute('fill','#1a1a1a');
     bmSvg.appendChild(body);
-
-    // Canopy / cockpit bubble
     var canopy = pdoc.createElementNS(ns,'ellipse');
-    canopy.setAttribute('cx','90'); canopy.setAttribute('cy','18');
-    canopy.setAttribute('rx','26'); canopy.setAttribute('ry','9');
-    canopy.setAttribute('fill','#111');
-    canopy.setAttribute('stroke','#333'); canopy.setAttribute('stroke-width','1');
+    canopy.setAttribute('cx','90'); canopy.setAttribute('cy','18'); canopy.setAttribute('rx','26'); canopy.setAttribute('ry','9'); canopy.setAttribute('fill','#111'); canopy.setAttribute('stroke','#333'); canopy.setAttribute('stroke-width','1');
     bmSvg.appendChild(canopy);
-
-    // Canopy highlight
     var cHigh = pdoc.createElementNS(ns,'ellipse');
-    cHigh.setAttribute('cx','88'); cHigh.setAttribute('cy','15');
-    cHigh.setAttribute('rx','16'); cHigh.setAttribute('ry','4');
-    cHigh.setAttribute('fill','rgba(180,220,255,0.12)');
+    cHigh.setAttribute('cx','88'); cHigh.setAttribute('cy','15'); cHigh.setAttribute('rx','16'); cHigh.setAttribute('ry','4'); cHigh.setAttribute('fill','rgba(180,220,255,0.12)');
     bmSvg.appendChild(cHigh);
-
-    // Tail fin — swept back
     var fin = pdoc.createElementNS(ns,'polygon');
-    fin.setAttribute('points','14,38 22,20 35,14 28,38');
-    fin.setAttribute('fill','#222');
+    fin.setAttribute('points','14,38 22,20 35,14 28,38'); fin.setAttribute('fill','#222');
     bmSvg.appendChild(fin);
-
-    // Rear secondary fin
-    var fin2 = pdoc.createElementNS(ns,'polygon');
-    fin2.setAttribute('points','14,38 18,28 26,22 22,38');
-    fin2.setAttribute('fill','#2a2a2a');
-    bmSvg.appendChild(fin2);
-
-    // Nose scoop
     var scoop = pdoc.createElementNS(ns,'polygon');
-    scoop.setAttribute('points','148,24 160,28 160,36 148,36');
-    scoop.setAttribute('fill','#111');
+    scoop.setAttribute('points','148,24 160,28 160,36 148,36'); scoop.setAttribute('fill','#111');
     bmSvg.appendChild(scoop);
-
-    // Headlight
     var hlight = pdoc.createElementNS(ns,'ellipse');
-    hlight.setAttribute('cx','152'); hlight.setAttribute('cy','30');
-    hlight.setAttribute('rx','5'); hlight.setAttribute('ry','3');
-    hlight.setAttribute('fill','rgba(255,240,180,0.9)');
+    hlight.setAttribute('cx','152'); hlight.setAttribute('cy','30'); hlight.setAttribute('rx','5'); hlight.setAttribute('ry','3'); hlight.setAttribute('fill','rgba(255,240,180,0.9)');
     bmSvg.appendChild(hlight);
-
-    // Headlight beam
     var beam = pdoc.createElementNS(ns,'polygon');
-    beam.setAttribute('points','157,28 200,18 200,42 157,32');
-    beam.setAttribute('fill','rgba(255,240,180,0.06)');
+    beam.setAttribute('points','157,28 220,10 220,50 157,32'); beam.setAttribute('fill','rgba(255,240,180,0.05)');
     bmSvg.appendChild(beam);
-
-    // Gold trim line along top of body
     var trim = pdoc.createElementNS(ns,'polyline');
-    trim.setAttribute('points','30,20 55,14 95,12 128,16 148,24');
-    trim.setAttribute('fill','none');
-    trim.setAttribute('stroke','#f1c40f'); trim.setAttribute('stroke-width','1.2');
-    trim.setAttribute('opacity','0.7');
+    trim.setAttribute('points','30,20 55,14 95,12 128,16 148,24'); trim.setAttribute('fill','none'); trim.setAttribute('stroke','#f1c40f'); trim.setAttribute('stroke-width','1.2'); trim.setAttribute('opacity','0.7');
     bmSvg.appendChild(trim);
-
-    // Wheels (two visible — rear and front)
-    [[38,42,12], [118,42,12]].forEach(function(w){
+    [[38,42,12],[118,42,12]].forEach(function(w){
       var wc = pdoc.createElementNS(ns,'circle');
-      wc.setAttribute('cx',w[0]); wc.setAttribute('cy',w[1]); wc.setAttribute('r',w[2]);
-      wc.setAttribute('fill','#111'); wc.setAttribute('stroke','#333'); wc.setAttribute('stroke-width','2');
+      wc.setAttribute('cx',w[0]); wc.setAttribute('cy',w[1]); wc.setAttribute('r',w[2]); wc.setAttribute('fill','#111'); wc.setAttribute('stroke','#333'); wc.setAttribute('stroke-width','2');
       bmSvg.appendChild(wc);
-      // Wheel hub
       var hub = pdoc.createElementNS(ns,'circle');
-      hub.setAttribute('cx',w[0]); hub.setAttribute('cy',w[1]); hub.setAttribute('r',5);
-      hub.setAttribute('fill','#2a2a2a'); hub.setAttribute('stroke','#f1c40f'); hub.setAttribute('stroke-width','0.8');
+      hub.setAttribute('cx',w[0]); hub.setAttribute('cy',w[1]); hub.setAttribute('r',5); hub.setAttribute('fill','#2a2a2a'); hub.setAttribute('stroke','#f1c40f'); hub.setAttribute('stroke-width','0.8');
       bmSvg.appendChild(hub);
     });
-
-    // Wheel glow rings (animated via JS)
     var wGlow1 = pdoc.createElementNS(ns,'circle');
-    wGlow1.setAttribute('cx','38'); wGlow1.setAttribute('cy','42'); wGlow1.setAttribute('r','13');
-    wGlow1.setAttribute('fill','none'); wGlow1.setAttribute('stroke','rgba(241,196,15,0.3)'); wGlow1.setAttribute('stroke-width','2');
+    wGlow1.setAttribute('cx','38'); wGlow1.setAttribute('cy','42'); wGlow1.setAttribute('r','13'); wGlow1.setAttribute('fill','none'); wGlow1.setAttribute('stroke','rgba(241,196,15,0.3)'); wGlow1.setAttribute('stroke-width','2');
     bmSvg.appendChild(wGlow1);
     var wGlow2 = pdoc.createElementNS(ns,'circle');
-    wGlow2.setAttribute('cx','118'); wGlow2.setAttribute('cy','42'); wGlow2.setAttribute('r','13');
-    wGlow2.setAttribute('fill','none'); wGlow2.setAttribute('stroke','rgba(241,196,15,0.3)'); wGlow2.setAttribute('stroke-width','2');
+    wGlow2.setAttribute('cx','118'); wGlow2.setAttribute('cy','42'); wGlow2.setAttribute('r','13'); wGlow2.setAttribute('fill','none'); wGlow2.setAttribute('stroke','rgba(241,196,15,0.3)'); wGlow2.setAttribute('stroke-width','2');
     bmSvg.appendChild(wGlow2);
-
     bmWrap.appendChild(bmSvg);
     pdoc.body.appendChild(bmWrap);
 
-    // Road line (subtle)
-    var road = pdoc.createElement('div');
-    road.style.cssText = 'position:fixed;bottom:62px;left:0;width:100%;height:1px;'
-      +'background:linear-gradient(90deg,transparent,rgba(100,120,160,0.25) 15%,rgba(100,120,160,0.25) 85%,transparent);'
-      +'pointer-events:none;z-index:2;';
-    pdoc.body.appendChild(road);
+    // ── Road ──
+    var roadDiv = pdoc.createElement('div');
+    roadDiv.id = 'bm-road';
+    roadDiv.style.cssText = 'position:fixed;bottom:0;left:0;width:100%;height:'+( BH + 36)+'px;'
+      +'background:linear-gradient(180deg,transparent,rgba(10,14,28,0.55));pointer-events:none;z-index:2;';
+    pdoc.body.appendChild(roadDiv);
+
+    // Lane divider dashes drawn on canvas
+    var gameCanvas = pdoc.createElement('canvas');
+    gameCanvas.id = 'bm-game-canvas';
+    gameCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:5;';
+    gameCanvas.width = W; gameCanvas.height = H;
+    pdoc.body.appendChild(gameCanvas);
+    var gctx = gameCanvas.getContext('2d');
+
+    // ── Game state ──
+    var GS = {
+      phase: 'idle',   // idle | countdown | playing | gameover
+      score: 0, hiScore: 0, lives: 3,
+      lane: 0,         // 0=lower 1=upper
+      bmVel: 180,      // horizontal px/s (always moving right in idle/playing)
+      obstacles: [],   // {x, lane, kind, w}
+      coins: [],       // {x, lane, pulse}
+      spawnCd: 1.2, coinCd: 2.2,
+      baseSpeed: 280,  // obstacle approach speed
+      speed: 280,
+      time: 0,
+      countdown: 3, cdTimer: 0,
+      hitCool: 0,      // invincibility after hit
+      flashAlpha: 0,   // red flash on hit
+      combo: 0, comboTimer: 0,
+      laneChangeCd: 0,
+    };
+
+    var keys = {};
+    pw.addEventListener('keydown', function(e){
+      var k = e.key;
+      if (!keys[k]) {
+        keys[k] = true;
+        if (k === ' ') {
+          if (GS.phase === 'idle' || GS.phase === 'gameover') startGame();
+        }
+        if (GS.phase === 'playing') {
+          if (k === 'ArrowUp'   && GS.lane === 0 && GS.laneChangeCd <= 0) { GS.lane = 1; GS.laneChangeCd = 0.22; }
+          if (k === 'ArrowDown' && GS.lane === 1 && GS.laneChangeCd <= 0) { GS.lane = 0; GS.laneChangeCd = 0.22; }
+          if (k === 'ArrowRight') GS.speed = Math.min(GS.speed + 80, GS.baseSpeed + 240);
+          if (k === 'ArrowLeft')  GS.speed = Math.max(GS.speed - 80, GS.baseSpeed - 140);
+        }
+      }
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(k) > -1) e.preventDefault();
+    });
+    pw.addEventListener('keyup', function(e){ keys[e.key] = false; });
+
+    function startGame() {
+      GS.phase = 'countdown'; GS.countdown = 3; GS.cdTimer = 1;
+      GS.score = 0; GS.lives = 3; GS.lane = 0;
+      GS.obstacles = []; GS.coins = [];
+      GS.speed = GS.baseSpeed; GS.spawnCd = 1.2; GS.coinCd = 2.2;
+      GS.time = 0; GS.hitCool = 0; GS.flashAlpha = 0; GS.combo = 0;
+      bmX = W * 0.18;
+    }
+
+    function spawnObstacle() {
+      var lane = Math.random() > 0.5 ? 1 : 0;
+      var kind = Math.random();
+      GS.obstacles.push({ x: W + 60, lane: lane,
+        kind: kind < 0.5 ? 'car' : kind < 0.8 ? 'bomb' : 'riddler', w: 80 });
+    }
+    function spawnCoin() {
+      GS.coins.push({ x: W + 30, lane: Math.random() > 0.5 ? 1 : 0, pulse: 0 });
+    }
+
+    function bmCollides(obj) {
+      if (obj.lane !== GS.lane) return false;
+      var bmLeft = bmX + 20, bmRight = bmX + BW - 20;
+      var obLeft = obj.x, obRight = obj.x + obj.w;
+      return bmRight > obLeft && bmLeft < obRight;
+    }
+    function coinCollides(c) {
+      if (c.lane !== GS.lane) return false;
+      var bmCx = bmX + BW * 0.5;
+      return Math.abs(bmCx - c.x) < 55;
+    }
 
     var bmLastTs = null, glowPhase = 0;
-    var bmVel = bmSpd;          // current velocity (px/s, signed)
-    var keys = {};              // track held keys
-    var ACCEL = 600, DECEL = 380, MAX_SPD = 520, TURBO = 900;
-    var turboActive = false, turboTimer = 0;
 
-    // Key listeners on parent window
-    pw.addEventListener('keydown', function(e) {
-      keys[e.key] = true;
-      // Turbo: Up arrow or Shift
-      if (e.key === 'ArrowUp' || e.key === 'Shift') {
-        turboActive = true; turboTimer = 0.6;
-        exGlow.setAttribute('fill','rgba(241,80,15,0.9)');
-      }
-      e.preventDefault && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].indexOf(e.key) > -1 && e.preventDefault();
-    });
-    pw.addEventListener('keyup', function(e) { keys[e.key] = false; if (e.key === 'ArrowUp' || e.key === 'Shift') turboActive = false; });
-
-    function driveBatmobile(ts) {
-      if (!bmLastTs) bmLastTs = ts;
+    function gameLoop(ts) {
+      if (!bmLastTs) { bmLastTs = ts; requestAnimationFrame(gameLoop); return; }
       var dt = Math.min((ts - bmLastTs) / 1000, 0.05);
       bmLastTs = ts;
-
       var sw = pw.innerWidth || 1440;
-      var maxSpd = (turboActive ? TURBO : MAX_SPD);
+      glowPhase += dt * 4;
 
-      // Turbo decay
-      if (turboActive) { turboTimer -= dt; if (turboTimer <= 0) { turboActive = false; } }
-
-      if (keys['ArrowRight']) {
-        bmVel = Math.min(bmVel + ACCEL * dt, maxSpd);
-      } else if (keys['ArrowLeft']) {
-        bmVel = Math.max(bmVel - ACCEL * dt, -maxSpd);
-      } else {
-        // Coast to a stop
-        if (bmVel > 0) bmVel = Math.max(0, bmVel - DECEL * dt);
-        else if (bmVel < 0) bmVel = Math.min(0, bmVel + DECEL * dt);
-        // Auto-cruise when player isn't touching keys (gentle default drift)
-        if (bmVel === 0) bmVel = bmDir * 80;
+      // ── Phase logic ──
+      if (GS.phase === 'countdown') {
+        GS.cdTimer -= dt;
+        if (GS.cdTimer <= 0) {
+          GS.countdown--;
+          if (GS.countdown <= 0) { GS.phase = 'playing'; }
+          else GS.cdTimer = 1;
+        }
       }
 
-      bmX += bmVel * dt;
-      if (bmVel > 0) bmDir = 1;
-      else if (bmVel < 0) bmDir = -1;
+      if (GS.phase === 'playing') {
+        GS.time += dt;
+        GS.score = Math.floor(GS.time * 10);
+        // Ramp difficulty
+        GS.baseSpeed = 280 + Math.floor(GS.time / 8) * 30;
+        GS.speed = Math.max(GS.baseSpeed - 140, Math.min(GS.speed, GS.baseSpeed + 240));
 
-      // Bounce off edges
-      if (bmX > sw + 20)   { bmX = sw + 20;  bmVel = -Math.abs(bmVel) * 0.6; bmDir = -1; }
-      if (bmX < -BW - 20)  { bmX = -BW - 20; bmVel =  Math.abs(bmVel) * 0.6; bmDir =  1; }
+        // Spawn
+        GS.spawnCd -= dt;
+        if (GS.spawnCd <= 0) { spawnObstacle(); GS.spawnCd = Math.max(0.5, 1.4 - GS.time * 0.018); }
+        GS.coinCd -= dt;
+        if (GS.coinCd <= 0) { spawnCoin(); GS.coinCd = 2.5 + Math.random() * 1.5; }
 
-      // Flip SVG for direction
-      bmSvg.style.transform = bmDir === -1 ? 'scaleX(-1)' : 'scaleX(1)';
+        // Move obstacles
+        for (var i = GS.obstacles.length-1; i >= 0; i--) {
+          GS.obstacles[i].x -= GS.speed * dt;
+          if (GS.obstacles[i].x < -120) { GS.obstacles.splice(i,1); continue; }
+          if (GS.hitCool <= 0 && bmCollides(GS.obstacles[i])) {
+            GS.lives--; GS.hitCool = 1.8; GS.flashAlpha = 0.55;
+            GS.combo = 0; GS.comboTimer = 0;
+            GS.obstacles.splice(i,1);
+            if (GS.lives <= 0) { GS.phase = 'gameover'; GS.hiScore = Math.max(GS.hiScore, GS.score); }
+            continue;
+          }
+        }
+        // Move coins
+        for (var j = GS.coins.length-1; j >= 0; j--) {
+          GS.coins[j].x -= GS.speed * dt * 0.85;
+          GS.coins[j].pulse += dt * 3;
+          if (GS.coins[j].x < -60) { GS.coins.splice(j,1); continue; }
+          if (coinCollides(GS.coins[j])) {
+            GS.combo++; GS.comboTimer = 3;
+            var bonus = GS.combo >= 3 ? 50 : 20;
+            GS.score += bonus;
+            GS.coins.splice(j,1);
+          }
+        }
+        if (GS.hitCool > 0) GS.hitCool -= dt;
+        if (GS.comboTimer > 0) GS.comboTimer -= dt; else if (GS.combo > 0) GS.combo = 0;
+        if (GS.laneChangeCd > 0) GS.laneChangeCd -= dt;
+        GS.flashAlpha = Math.max(0, GS.flashAlpha - dt * 1.2);
+      }
+
+      // ── Move batmobile ──
+      bmX += GS.bmVel * dt;
+      if (bmX > sw - BW) { bmX = sw - BW; }
+
+      // Position
+      var targetY = LANE_Y[GS.lane];
       bmWrap.style.left = bmX + 'px';
-      bmWrap.style.top  = (H - BH - 28) + 'px';
+      bmWrap.style.top  = targetY + 'px';
+      // Blink during invincibility
+      bmSvg.style.opacity = (GS.hitCool > 0 && Math.floor(GS.hitCool * 10) % 2 === 0) ? '0.25' : '0.95';
 
-      // Wheel glow spins faster at higher speed
-      var speedFrac = Math.abs(bmVel) / MAX_SPD;
-      glowPhase += dt * (2 + speedFrac * 8);
-      var gAlpha = (0.1 + 0.35 * Math.abs(Math.sin(glowPhase))).toFixed(2);
-      wGlow1.setAttribute('stroke', 'rgba(241,196,15,' + gAlpha + ')');
-      wGlow2.setAttribute('stroke', 'rgba(241,196,15,' + gAlpha + ')');
+      // Wheel glow
+      var gA = (0.1 + 0.3 * Math.abs(Math.sin(glowPhase))).toFixed(2);
+      wGlow1.setAttribute('stroke','rgba(241,196,15,'+gA+')');
+      wGlow2.setAttribute('stroke','rgba(241,196,15,'+gA+')');
+      var exA = (0.3 + 0.25 * Math.abs(Math.sin(glowPhase * 2.1))).toFixed(2);
+      exGlow.setAttribute('fill','rgba(241,120,15,'+exA+')');
 
-      // Exhaust — bigger flame at turbo
-      var exR = turboActive ? 241 : 241;
-      var exG = turboActive ? 60  : 120;
-      var exAlpha = turboActive
-        ? (0.7 + 0.25 * Math.abs(Math.sin(glowPhase * 4))).toFixed(2)
-        : (0.25 + 0.2 * Math.abs(Math.sin(glowPhase * 2.3))).toFixed(2);
-      exGlow.setAttribute('fill', 'rgba('+exR+','+exG+',15,' + exAlpha + ')');
-      exGlow.setAttribute('rx', turboActive ? '18' : '10');
+      // ── Draw canvas ──
+      gctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 
-      // Speed hint on first interaction
-      if (!pw._bmHintShown) {
-        pw._bmHintShown = true;
-        var hint = pdoc.createElement('div');
-        hint.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);'
-          +'color:rgba(241,196,15,0.5);font-family:monospace;font-size:0.72rem;letter-spacing:0.1em;'
-          +'pointer-events:none;z-index:10;transition:opacity 2s;';
-        hint.textContent = '← → drive   ↑ turbo';
-        pdoc.body.appendChild(hint);
-        setTimeout(function(){ hint.style.opacity='0'; }, 3500);
-        setTimeout(function(){ hint.remove(); }, 5600);
+      // Lane divider dashes
+      var divY = (LANE_Y[0] + LANE_Y[1]) / 2 + BH * 0.5;
+      gctx.setLineDash([28, 18]);
+      gctx.strokeStyle = 'rgba(100,130,180,0.18)';
+      gctx.lineWidth = 2;
+      gctx.beginPath(); gctx.moveTo(0, divY); gctx.lineTo(sw, divY);
+      gctx.stroke(); gctx.setLineDash([]);
+
+      // Draw obstacles
+      GS.obstacles.forEach(function(o) {
+        var oy = LANE_Y[o.lane] + 4;
+        if (o.kind === 'car') {
+          // Enemy car silhouette
+          gctx.fillStyle = '#8B1A1A';
+          gctx.fillRect(o.x, oy + 14, 80, 26);
+          gctx.fillStyle = '#AA2222';
+          gctx.fillRect(o.x + 8, oy + 4, 56, 18);
+          // Wheels
+          [[14,40],[66,40]].forEach(function(w){
+            gctx.beginPath(); gctx.arc(o.x+w[0], oy+w[1], 9, 0, Math.PI*2);
+            gctx.fillStyle='#222'; gctx.fill();
+            gctx.strokeStyle='#555'; gctx.lineWidth=1.5; gctx.stroke();
+          });
+          // Headlights (facing left = threat)
+          gctx.fillStyle='rgba(255,60,60,0.8)';
+          gctx.fillRect(o.x, oy+17, 5, 8);
+          // Warning glow
+          var warnA = 0.15 + 0.15 * Math.abs(Math.sin(glowPhase * 3));
+          gctx.beginPath(); gctx.ellipse(o.x+40,oy+28,44,22,0,0,Math.PI*2);
+          gctx.fillStyle='rgba(200,30,30,'+warnA+')'; gctx.fill();
+        } else if (o.kind === 'bomb') {
+          gctx.beginPath(); gctx.arc(o.x+20, oy+22, 18, 0, Math.PI*2);
+          gctx.fillStyle='#1a1a1a'; gctx.fill();
+          gctx.strokeStyle='#e74c3c'; gctx.lineWidth=2; gctx.stroke();
+          // Fuse
+          gctx.beginPath(); gctx.moveTo(o.x+28,oy+6); gctx.quadraticCurveTo(o.x+36,oy,o.x+34,oy-8);
+          gctx.strokeStyle='#f39c12'; gctx.lineWidth=2; gctx.stroke();
+          // Spark
+          var spkA = 0.6 + 0.4*Math.abs(Math.sin(glowPhase*5));
+          gctx.beginPath(); gctx.arc(o.x+34,oy-8,4,0,Math.PI*2);
+          gctx.fillStyle='rgba(255,200,0,'+spkA+')'; gctx.fill();
+          gctx.font='bold 13px monospace'; gctx.fillStyle='#e74c3c'; gctx.textAlign='center';
+          gctx.fillText('💣',o.x+20,oy+27);
+        } else {
+          // Riddler ?
+          gctx.beginPath(); gctx.arc(o.x+20,oy+22,18,0,Math.PI*2);
+          gctx.fillStyle='#0a2a0a'; gctx.fill();
+          gctx.strokeStyle='#2ecc71'; gctx.lineWidth=2; gctx.stroke();
+          gctx.font='bold 20px monospace'; gctx.fillStyle='#2ecc71'; gctx.textAlign='center';
+          gctx.fillText('?',o.x+20,oy+29);
+        }
+      });
+
+      // Draw coins (bat signal tokens)
+      GS.coins.forEach(function(c) {
+        var cy2 = LANE_Y[c.lane] + BH*0.5;
+        var pA = 0.55 + 0.3*Math.abs(Math.sin(c.pulse));
+        gctx.beginPath(); gctx.arc(c.x,cy2,14,0,Math.PI*2);
+        gctx.fillStyle='rgba(241,196,15,0.15)'; gctx.fill();
+        gctx.strokeStyle='rgba(241,196,15,'+pA+')'; gctx.lineWidth=2; gctx.stroke();
+        gctx.font='14px serif'; gctx.textAlign='center';
+        gctx.fillStyle='rgba(241,196,15,'+pA+')';
+        gctx.fillText('🦇',c.x,cy2+5);
+      });
+
+      // ── HUD ──
+      gctx.textAlign='left';
+      if (GS.phase === 'playing' || GS.phase === 'gameover') {
+        // Lives
+        gctx.font = 'bold 15px monospace';
+        gctx.fillStyle = 'rgba(241,196,15,0.85)';
+        gctx.fillText('LIVES:', 18, 36);
+        for (var l=0; l<3; l++) {
+          gctx.font = '16px serif';
+          gctx.fillStyle = l < GS.lives ? 'rgba(241,196,15,0.9)' : 'rgba(80,80,80,0.5)';
+          gctx.fillText('🦇', 80 + l*24, 36);
+        }
+        // Score
+        gctx.font = 'bold 15px monospace'; gctx.textAlign='right';
+        gctx.fillStyle='rgba(241,196,15,0.85)';
+        gctx.fillText('SCORE: '+GS.score, sw-18, 36);
+        // Combo
+        if (GS.combo >= 2 && GS.comboTimer > 0) {
+          gctx.textAlign='center';
+          gctx.font='bold 13px monospace';
+          gctx.fillStyle='rgba(255,220,80,'+(0.6+0.3*Math.abs(Math.sin(glowPhase*3)))+')';
+          gctx.fillText('x'+GS.combo+' COMBO!', sw/2, 36);
+        }
+        // Speed indicator
+        gctx.textAlign='left';
+        gctx.font='11px monospace'; gctx.fillStyle='rgba(100,150,255,0.5)';
+        gctx.fillText('← → speed   ↑ ↓ lane   ⎵ start', 18, H-8);
       }
 
-      if (pdoc.getElementById('batmobile-wrap')) requestAnimationFrame(driveBatmobile);
+      // Countdown overlay
+      if (GS.phase === 'countdown') {
+        gctx.textAlign='center';
+        gctx.font='bold 88px monospace';
+        var cA = Math.min(1, GS.cdTimer * 2);
+        gctx.fillStyle='rgba(241,196,15,'+cA+')';
+        gctx.fillText(GS.countdown, sw/2, H/2);
+        gctx.font='bold 16px monospace'; gctx.fillStyle='rgba(241,196,15,0.5)';
+        gctx.fillText('GET READY', sw/2, H/2 + 50);
+      }
+
+      // Idle overlay
+      if (GS.phase === 'idle') {
+        gctx.textAlign='center';
+        var pulseA = 0.45 + 0.3*Math.abs(Math.sin(glowPhase*0.9));
+        gctx.font='bold 14px monospace'; gctx.fillStyle='rgba(241,196,15,'+pulseA+')';
+        gctx.fillText('⎵  PRESS SPACE TO PLAY  ⎵', sw/2, LANE_Y[0]-10);
+        gctx.font='11px monospace'; gctx.fillStyle='rgba(180,200,255,0.38)';
+        gctx.fillText('↑ ↓ change lane   ← → adjust speed', sw/2, LANE_Y[0]+8);
+        if (GS.hiScore > 0) {
+          gctx.fillStyle='rgba(241,196,15,0.4)';
+          gctx.fillText('BEST: '+GS.hiScore, sw/2, LANE_Y[0]+26);
+        }
+      }
+
+      // Game over overlay
+      if (GS.phase === 'gameover') {
+        gctx.textAlign='center';
+        gctx.fillStyle='rgba(0,0,0,0.45)';
+        gctx.fillRect(0, H/2-70, sw, 140);
+        gctx.font='bold 42px monospace'; gctx.fillStyle='rgba(200,40,40,0.95)';
+        gctx.fillText('GAME OVER', sw/2, H/2-12);
+        gctx.font='18px monospace'; gctx.fillStyle='rgba(241,196,15,0.85)';
+        gctx.fillText('Score: '+GS.score+'  |  Best: '+GS.hiScore, sw/2, H/2+28);
+        var goA = 0.5+0.4*Math.abs(Math.sin(glowPhase*1.5));
+        gctx.font='bold 13px monospace'; gctx.fillStyle='rgba(241,196,15,'+goA+')';
+        gctx.fillText('⎵  PRESS SPACE TO PLAY AGAIN  ⎵', sw/2, H/2+62);
+      }
+
+      // Hit flash
+      if (GS.flashAlpha > 0) {
+        gctx.fillStyle='rgba(200,30,30,'+GS.flashAlpha.toFixed(2)+')';
+        gctx.fillRect(0,0,sw,H);
+      }
+
+      if (pdoc.getElementById('batmobile-wrap')) requestAnimationFrame(gameLoop);
     }
-    requestAnimationFrame(driveBatmobile);
+    requestAnimationFrame(gameLoop);
   }
 
 })();
@@ -637,7 +802,8 @@ components.html("""
 <script>
 (function(){
   var pd = window.parent.document;
-  ['login-style','nyc-skyline','login-plane'].forEach(function(id){
+  ['login-style','nyc-skyline','login-plane','login-plane-trail',
+   'batmobile-wrap','bm-game-canvas','bm-road'].forEach(function(id){
     var el = pd.getElementById(id);
     if (el) el.remove();
   });
