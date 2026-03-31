@@ -674,20 +674,6 @@ if not _noir:
 .typewriter { border-right: 2px solid transparent; animation: slide-in 0.5s ease, caret-blink 1s step-end 0.5s 6; }
 @keyframes caret-blink { 0%,100%{border-color:transparent} 50%{border-color:#f1c40f} }
 
-/* ── Bat Signal ── */
-#bat-signal {
-    position:fixed; top:65px; right:55px; width:90px; height:90px;
-    z-index:9999; pointer-events:none; border-radius:50%;
-    background:radial-gradient(circle,#ffe066 0%,#f1c40f 45%,rgba(241,196,15,.25) 70%,transparent 100%);
-    animation:bat-pulse 2.5s ease-in-out infinite;
-    display:flex; align-items:center; justify-content:center;
-}
-#bat-signal svg { width:58px; height:58px; filter:drop-shadow(0 0 3px rgba(0,0,0,.5)); }
-@keyframes bat-pulse {
-    0%,100% { box-shadow:0 0 18px 6px rgba(241,196,15,.55),0 0 40px 10px rgba(241,196,15,.25); }
-    50%      { box-shadow:0 0 38px 16px rgba(241,196,15,.95),0 0 80px 30px rgba(241,196,15,.50); }
-}
-
 /* ── Flying bats ── */
 .fly-bat {
     position:fixed; z-index:9990; pointer-events:none;
@@ -751,27 +737,6 @@ if not _noir:
 }
 </style>
 
-<!-- Bat Signal -->
-<div id="bat-signal">
-    <svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
-        <ellipse cx="100" cy="82" rx="96" ry="74" fill="#1a1a1a"/>
-        <path d="
-            M100,38 C100,38 94,28 82,28 C68,28 56,36 48,44
-            C38,53 34,60 30,62 C38,60 46,61 52,65
-            C44,70 36,80 34,92 C40,84 50,80 58,82
-            C56,86 54,92 55,100 C60,91 68,86 76,86
-            L80,100 C84,112 90,120 100,120
-            C110,120 116,112 120,100 L124,86
-            C132,86 140,91 145,100 C146,92 144,86 142,82
-            C150,80 160,84 166,92 C164,80 156,70 148,65
-            C154,61 162,60 170,62 C166,60 162,53 152,44
-            C144,36 132,28 118,28 C106,28 100,38 100,38 Z
-        " fill="#f1c40f"/>
-        <polygon points="72,42 62,20 84,36" fill="#f1c40f"/>
-        <polygon points="128,42 138,20 116,36" fill="#f1c40f"/>
-    </svg>
-</div>
-
 <!-- Flying bats (3 at different heights/speeds) -->
 <div class="fly-bat" style="top:9%;font-size:20px;animation-duration:14s;animation-delay:0s;"><span>🦇</span></div>
 <div class="fly-bat" style="top:28%;font-size:13px;animation-duration:21s;animation-delay:-7s;opacity:0.45;"><span>🦇</span></div>
@@ -818,16 +783,6 @@ else:
     font-style: italic; font-size: 1.05rem;
 }
 .quote-src { color:#5C4A1E; font-size:0.8rem; font-style:normal; font-weight:bold; margin-top:6px; }
-
-/* ── Bat Signal — ink stamp, no glow ── */
-#bat-signal {
-    position:fixed; top:65px; right:55px; width:90px; height:90px;
-    z-index:9999; pointer-events:none; border-radius:50%;
-    background: transparent;
-    display:flex; align-items:center; justify-content:center;
-    opacity:0.55;
-}
-#bat-signal svg { width:72px; height:72px; }
 
 /* ── Flying bats — ghostly, no flap animation ── */
 .fly-bat {
@@ -876,32 +831,114 @@ else:
 .rank-card.unlocked { animation: none; }
 </style>
 
-<!-- Bat Signal — ink stamp (dark oval, cream bat) -->
-<div id="bat-signal">
-    <svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
-        <ellipse cx="100" cy="82" rx="96" ry="74" fill="#2A2A2A"/>
-        <path d="
-            M100,38 C100,38 94,28 82,28 C68,28 56,36 48,44
-            C38,53 34,60 30,62 C38,60 46,61 52,65
-            C44,70 36,80 34,92 C40,84 50,80 58,82
-            C56,86 54,92 55,100 C60,91 68,86 76,86
-            L80,100 C84,112 90,120 100,120
-            C110,120 116,112 120,100 L124,86
-            C132,86 140,91 145,100 C146,92 144,86 142,82
-            C150,80 160,84 166,92 C164,80 156,70 148,65
-            C154,61 162,60 170,62 C166,60 162,53 152,44
-            C144,36 132,28 118,28 C106,28 100,38 100,38 Z
-        " fill="#F2EFE8"/>
-        <polygon points="72,42 62,20 84,36" fill="#F2EFE8"/>
-        <polygon points="128,42 138,20 116,36" fill="#F2EFE8"/>
-    </svg>
-</div>
-
 <!-- Flying bats — ghostly -->
 <div class="fly-bat" style="top:9%;font-size:20px;animation-duration:14s;animation-delay:0s;"><span>🦇</span></div>
 <div class="fly-bat" style="top:28%;font-size:13px;animation-duration:21s;animation-delay:-7s;"><span>🦇</span></div>
 <div class="fly-bat" style="top:52%;font-size:16px;animation-duration:17s;animation-delay:-11s;"><span>🦇</span></div>
 """, unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+# 5b. BOUNCING BAT SIGNAL (window.parent escape — position:fixed inside st.markdown
+#     is clipped to the component iframe, so we inject it directly into the real DOM)
+# ─────────────────────────────────────────────
+_bat_noir = "true" if _noir else "false"
+components.html(f"""
+<script>
+(function(){{
+  var pw;
+  try {{ pw = window.parent; }} catch(e) {{ pw = window; }}
+  var pdoc = pw.document;
+
+  // Only create once — the rAF loop keeps running across Streamlit reruns
+  if (pdoc.getElementById('bat-signal')) return;
+
+  var ns = 'http://www.w3.org/2000/svg';
+  var noirMode = {_bat_noir};
+
+  // Wrapper div
+  var wrap = pdoc.createElement('div');
+  wrap.id = 'bat-signal';
+  wrap.style.cssText = 'position:fixed;width:82px;height:82px;z-index:9999;'
+    + 'pointer-events:none;display:flex;align-items:center;justify-content:center;'
+    + 'border-radius:50%;';
+
+  // Build SVG
+  var svg = pdoc.createElementNS(ns,'svg');
+  svg.setAttribute('viewBox','0 0 200 160');
+  svg.style.cssText = noirMode
+    ? 'width:72px;height:72px;opacity:0.6;'
+    : 'width:68px;height:68px;filter:drop-shadow(0 0 8px rgba(241,196,15,0.8));';
+
+  var ovalFill = noirMode ? '#2A2A2A' : '#1a1a1a';
+  var batFill  = noirMode ? '#F2EFE8' : '#f1c40f';
+
+  var oval = pdoc.createElementNS(ns,'ellipse');
+  oval.setAttribute('cx','100'); oval.setAttribute('cy','82');
+  oval.setAttribute('rx','96');  oval.setAttribute('ry','74');
+  oval.setAttribute('fill', ovalFill);
+  svg.appendChild(oval);
+
+  var body = pdoc.createElementNS(ns,'path');
+  body.setAttribute('d','M100,38 C100,38 94,28 82,28 C68,28 56,36 48,44 C38,53 34,60 30,62 C38,60 46,61 52,65 C44,70 36,80 34,92 C40,84 50,80 58,82 C56,86 54,92 55,100 C60,91 68,86 76,86 L80,100 C84,112 90,120 100,120 C110,120 116,112 120,100 L124,86 C132,86 140,91 145,100 C146,92 144,86 142,82 C150,80 160,84 166,92 C164,80 156,70 148,65 C154,61 162,60 170,62 C166,60 162,53 152,44 C144,36 132,28 118,28 C106,28 100,38 100,38 Z');
+  body.setAttribute('fill', batFill);
+  svg.appendChild(body);
+
+  var e1 = pdoc.createElementNS(ns,'polygon');
+  e1.setAttribute('points','72,42 62,20 84,36'); e1.setAttribute('fill', batFill);
+  svg.appendChild(e1);
+  var e2 = pdoc.createElementNS(ns,'polygon');
+  e2.setAttribute('points','128,42 138,20 116,36'); e2.setAttribute('fill', batFill);
+  svg.appendChild(e2);
+
+  wrap.appendChild(svg);
+  pdoc.body.appendChild(wrap);
+
+  // ── Bounce physics ──
+  var size = 82;
+  var x = pw.innerWidth  - size - 60;   // start near top-right like before
+  var y = 65;
+  var spd = 1.1;
+  var dx =  -(0.6 + Math.random() * 0.5) * spd;
+  var dy =   (0.3 + Math.random() * 0.4) * spd;
+  var glowFrames = 0;
+
+  function tick() {{
+    var sw = pw.innerWidth  || 1200;
+    var sh = pw.innerHeight || 800;
+
+    x += dx; y += dy;
+
+    var bounced = false;
+    if (x <= 0)          {{ dx = Math.abs(dx);  x = 0;          bounced = true; }}
+    if (x >= sw - size)  {{ dx = -Math.abs(dx); x = sw - size;  bounced = true; }}
+    if (y <= 0)          {{ dy = Math.abs(dy);  y = 0;          bounced = true; }}
+    if (y >= sh - size)  {{ dy = -Math.abs(dy); y = sh - size;  bounced = true; }}
+
+    if (bounced && !noirMode) {{
+      glowFrames = 18;
+    }}
+
+    if (glowFrames > 0) {{
+      var g = Math.round((glowFrames / 18) * 255);
+      svg.style.filter = 'drop-shadow(0 0 ' + (6 + glowFrames) + 'px rgba(241,196,15,' + (glowFrames/18).toFixed(2) + '))';
+      glowFrames--;
+    }} else if (!noirMode) {{
+      svg.style.filter = 'drop-shadow(0 0 6px rgba(241,196,15,0.5))';
+    }}
+
+    wrap.style.left = x + 'px';
+    wrap.style.top  = y + 'px';
+
+    // Keep running — will survive Streamlit reruns since it's in parent window
+    if (pdoc.getElementById('bat-signal')) {{
+      requestAnimationFrame(tick);
+    }}
+  }}
+
+  requestAnimationFrame(tick);
+}})();
+</script>
+""", height=0)
 
 # ─────────────────────────────────────────────
 # 6. JS CELEBRATION ANIMATIONS  (iframe → window.parent escape)
