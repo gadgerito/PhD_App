@@ -1249,7 +1249,7 @@ with st.sidebar:
                 st.rerun()
 
     st.divider()
-    st.subheader("📓 Response Lab")
+    st.subheader("📍 Last Worked")
     last_section = st.session_state.get("last_worked_section", "")
     last_date = st.session_state.get("last_worked_date", "")
     if last_section:
@@ -1870,28 +1870,38 @@ _total_task_mins = sum(_task_timers.values())
 _all_mins = _total_section_mins + _total_task_mins
 _rank_icon_display = get_rank(st.session_state.xp)[0]
 
+# EKT progress for banner
+_banner_cache = st.session_state.get("comps_feedback_cache", [])
+_banner_completed = st.session_state.completed_tasks
+_banner_ekt_total = len(_banner_cache) + len(lab_context) + len(EMILY_DRAFT_FEEDBACK)
+_banner_ekt_done = (
+    sum(1 for i in _banner_cache if i.get("status") != "pending")
+    + sum(1 for tid in lab_context if tid in _banner_completed)
+    + sum(1 for fb in EMILY_DRAFT_FEEDBACK if fb["id"] in _banner_completed)
+)
+_banner_ekt_pct = int(_banner_ekt_done / _banner_ekt_total * 100) if _banner_ekt_total else 0
+
 # Build encouraging message
 _msg_lines = [f"## 🦇 Welcome back, {_rank_icon_display} {_rank_title}"]
-_msg_lines.append(f"**{st.session_state.xp} XP earned** • **{_all_mins // 60}h {_all_mins % 60}m** focused")
+_msg_lines.append(f"**{st.session_state.xp} XP earned** • **{_all_mins // 60}h {_all_mins % 60}m** focused • **{_banner_ekt_done}/{_banner_ekt_total} feedback items resolved** ({_banner_ekt_pct}%)")
 
 if _last_section and _last_date:
-    _msg_lines.append(f"⏪ **Last worked:** {_last_section} on {_last_date}")
+    _msg_lines.append(f"⏪ **Last worked:** {_last_section} · {_last_date}")
 
 # Progress towards next rank
 _next_xp, _next_title = get_next_rank(st.session_state.xp)
 if _next_xp:
     _needed = _next_xp - st.session_state.xp
-    _msg_lines.append(f"🔺 **{_needed} XP until {_next_title}** — You're on the right path.")
+    _msg_lines.append(f"🔺 **{_needed} XP until {_next_title}**")
 else:
     _msg_lines.append(f"👑 **LEGEND STATUS ACHIEVED** — Gotham's finest.")
 
-# Sections overview
-if _section_timers:
-    _top_sections = sorted(_section_timers.items(), key=lambda x: x[1], reverse=True)[:3]
-    _section_str = " • ".join([f"{s}: {m}m" for s, m in _top_sections])
-    _msg_lines.append(f"⏱️ **Most focused:** {_section_str}")
-
-_msg_lines.append("*Gotham needs you. Dive in.* 🌙")
+if _banner_ekt_pct >= 75:
+    _msg_lines.append("*The finish line is in sight. One more push.* 🌙")
+elif _banner_ekt_pct >= 50:
+    _msg_lines.append("*Past halfway. Momentum is yours.* 🌙")
+else:
+    _msg_lines.append("*Gotham needs you. Dive in.* 🌙")
 
 st.markdown("\n\n".join(_msg_lines))
 st.divider()
@@ -3974,8 +3984,11 @@ with t8:
                             _bulk_xp += _bxp
                         st.session_state.xp += _bulk_xp
                         st.session_state.celebration_xp = _bulk_xp
+                        _last_bitem = _bulk_options[_bulk_selected[-1]]
+                        st.session_state.last_worked_section = _last_bitem.get("section", "")
+                        st.session_state.last_worked_date = datetime.now().strftime("%b %d, %Y at %I:%M %p")
                         save_all_progress()
-                        st.toast(f"🦇 +{_bulk_xp} XP! {len(_bulk_selected)} items done!", icon="🦇")
+                        st.toast(f"+{_bulk_xp} XP — {len(_bulk_selected)} items crushed!", icon="🦇")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Bulk update failed: {e}")
@@ -4082,6 +4095,8 @@ with t8:
                                     break
                         st.session_state.xp += _xp_reward
                         st.session_state.celebration_xp = _xp_reward
+                        st.session_state.last_worked_section = _item.get("section", "")
+                        st.session_state.last_worked_date = datetime.now().strftime("%b %d, %Y at %I:%M %p")
                         # Race the clock tracking
                         if st.session_state.get("race_active"):
                             st.session_state.race_completed = st.session_state.get("race_completed", 0) + 1
@@ -4089,7 +4104,19 @@ with t8:
                             if st.session_state.race_streak > st.session_state.get("race_best_streak", 0):
                                 st.session_state.race_best_streak = st.session_state.race_streak
                         save_all_progress()
-                        st.toast(f"🦇 +{_xp_reward} XP! {_item['id']} done!", icon="🦇")
+                        # Contextual toast: show section + how many of this paper are left
+                        _done_after = sum(
+                            1 for i in _ekt_items
+                            if i.get("paper") == _item.get("paper") and (
+                                i.get("status") != "pending" if i.get("reviewer") != "Emily"
+                                else i.get("task_id") in st.session_state.completed_tasks
+                            )
+                        )
+                        _paper_total = sum(1 for i in _ekt_items if i.get("paper") == _item.get("paper"))
+                        _type_labels = {"quick_fix": "quick fix", "clarification": "clarification", "substantive": "revision", "major": "major revision"}
+                        _tlabel = _type_labels.get(_item.get("action_type", ""), "item")
+                        _sec_short = (_item.get("section", "")[:28] + "…") if len(_item.get("section", "")) > 28 else _item.get("section", "")
+                        st.toast(f"+{_xp_reward} XP — {_tlabel} done · {_sec_short} · {_item.get('paper','')} {_done_after}/{_paper_total}", icon="🦇")
                         st.balloons()
                         # Auto-advance to next
                         st.session_state.ekt_current_idx = (_idx + 1) % len(_filtered)
