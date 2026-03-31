@@ -969,16 +969,13 @@ def generate_daily_briefing():
         return f"(Briefing unavailable: {e})"
 
 
-def _flush_coach_log(section_name: str = ""):
-    """Save current coach_messages to coach_log if there's anything worth keeping."""
-    msgs = st.session_state.get("coach_messages", [])
-    # Only log sessions that have at least one real back-and-forth
-    if sum(1 for m in msgs if m["role"] == "user") == 0:
-        return
+def _log_coach_exchange(question: str, answer: str, section_name: str = ""):
+    """Append a single user question + Robin answer to the persistent coach log."""
     entry = {
         "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "section": section_name or st.session_state.get("last_worked_section", "Unknown"),
-        "messages": list(msgs),
+        "question": question,
+        "answer": answer,
     }
     st.session_state.setdefault("coach_log", []).append(entry)
     save_all_progress()
@@ -2780,7 +2777,6 @@ drawClock();
 
         nav1, nav2, nav3 = st.columns(3)
         if nav1.button("◀ Prev", key="wt_prev", use_container_width=True, disabled=(wt_idx == 0)):
-            _flush_coach_log(_wt_sections[wt_idx])
             st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
             st.session_state.walkthrough_idx -= 1
             new_idx = st.session_state.walkthrough_idx
@@ -2790,7 +2786,6 @@ drawClock();
             st.session_state.focus_section_select = _wt_sections[new_idx]
             st.rerun()
         if nav2.button("Next ▶", key="wt_next", use_container_width=True, disabled=(wt_idx >= len(_wt_sections)-1)):
-            _flush_coach_log(_wt_sections[wt_idx])
             st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
             st.session_state.walkthrough_idx += 1
             new_idx = st.session_state.walkthrough_idx
@@ -2800,7 +2795,6 @@ drawClock();
             st.session_state.focus_section_select = _wt_sections[new_idx]
             st.rerun()
         if nav3.button("✖ End", key="wt_end", use_container_width=True):
-            _flush_coach_log(_wt_sections[wt_idx])
             st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
             st.session_state.walkthrough_active = False
             st.session_state.coach_messages = []
@@ -2966,8 +2960,10 @@ Be direct, specific, doctoral-level. Keep responses concise — this is a sideba
                         system=system_prompt,
                         messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.coach_messages[-10:]]
                     )
-                    st.session_state.coach_messages.append({"role": "assistant", "content": response.content[0].text})
+                    robin_reply = response.content[0].text
+                    st.session_state.coach_messages.append({"role": "assistant", "content": robin_reply})
                     st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
+                    _log_coach_exchange(coach_input, robin_reply, current_wt_sec if wt_active else st.session_state.get("focus_section_select", ""))
                     st.rerun()
                 except Exception as e:
                     st.error(f"Coach failed: {e}")
@@ -2975,7 +2971,6 @@ Be direct, specific, doctoral-level. Keep responses concise — this is a sideba
             st.warning("Type something first!")
 
     if coach_col2.button("🗑️ Clear", use_container_width=True, key="coach_clear"):
-        _flush_coach_log(current_wt_sec)
         st.session_state.coach_messages = []
         st.session_state.walkthrough_introduced = -1
         st.rerun()
@@ -2983,22 +2978,19 @@ Be direct, specific, doctoral-level. Keep responses concise — this is a sideba
     # ── Coach conversation log ──
     _coach_log = st.session_state.get("coach_log", [])
     if _coach_log:
-        with st.expander(f"📜 Coach History ({len(_coach_log)} sessions)", expanded=False):
+        with st.expander(f"📜 Coach History ({len(_coach_log)} exchanges)", expanded=False):
             for _log_entry in reversed(_coach_log):
                 st.markdown(f"**{_log_entry['date']} · {_log_entry['section']}**")
-                for _lm in _log_entry["messages"]:
-                    if _lm["role"] == "user":
-                        st.markdown(
-                            f'<div style="background:#1a1410;color:#f5f0e8;padding:8px 12px;'
-                            f'border-radius:10px 2px 10px 10px;margin:4px 0 4px 32px;font-size:13px;">👤 {_lm["content"]}</div>',
-                            unsafe_allow_html=True
-                        )
-                    else:
-                        st.markdown(
-                            f'<div style="background:#fff;border:1px solid #d4c9b8;color:#1a1410;padding:8px 12px;'
-                            f'border-radius:2px 10px 10px 10px;margin:4px 32px 4px 0;font-size:13px;">🐦 {_lm["content"]}</div>',
-                            unsafe_allow_html=True
-                        )
+                st.markdown(
+                    f'<div style="background:#1a1410;color:#f5f0e8;padding:8px 12px;'
+                    f'border-radius:10px 2px 10px 10px;margin:4px 0 4px 32px;font-size:13px;">👤 {_log_entry["question"]}</div>',
+                    unsafe_allow_html=True
+                )
+                st.markdown(
+                    f'<div style="background:#fff;border:1px solid #d4c9b8;color:#1a1410;padding:8px 12px;'
+                    f'border-radius:2px 10px 10px 10px;margin:4px 32px 4px 0;font-size:13px;">🐦 {_log_entry["answer"]}</div>',
+                    unsafe_allow_html=True
+                )
                 st.divider()
 
 # ─────────────────────────────────────────────
