@@ -3807,7 +3807,7 @@ with t8:
     # Combine Emma (from cache) + Emily items
     _ekt_items = sorted(
         [i for i in st.session_state.get("comps_feedback_cache", []) if i.get("reviewer") == "Emma Tsui"],
-        key=lambda x: (x.get("paper_num", 0), x.get("comment_id", 0))
+        key=lambda x: (x.get("paper_num") or 0, x.get("comment_id") or 0)
     ) + _emily_ekt_items
 
     if _ekt_items:
