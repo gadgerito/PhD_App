@@ -997,6 +997,61 @@ lab_context = {
         "prefill": "Added section clarifying that HCBS is an optional benefit and not a mandatory requirement for state Medicaid plans."
     }
 }
+
+# Structured feedback from Emily's draft review (hbmc_draft_feedback.py)
+# comment_type → action_type; severity → priority
+_EMILY_COMMENT_TYPE_MAP = {
+    "Narrative Flow": "clarification",
+    "Content & Frameworks": "substantive",
+    "Methodology": "substantive",
+    "Argumentation": "substantive",
+    "Formatting & Citations": "quick_fix",
+    "Grammar/Syntax": "quick_fix",
+}
+EMILY_DRAFT_FEEDBACK = [
+    {
+        "id": "FB-001",
+        "section": "Introduction to Home-Based Medical Care (HBMC)",
+        "comment_type": "Narrative Flow",
+        "severity": "Low",
+        "feedback": "The introduction provides a solid foundational understanding of HBMC. To strengthen the overarching narrative of the exam, consider briefly foreshadowing the vulnerability of HBMC to natural disasters in this first section. This will better bridge the context with the subsequent chapters."
+    },
+    {
+        "id": "FB-002",
+        "section": "Impacts of Disasters",
+        "comment_type": "Content & Frameworks",
+        "severity": "Medium",
+        "feedback": "Excellent application of the Socio-ecological and Resilience frameworks. The transition from general older adult vulnerabilities to specific HBMC challenges (e.g., electricity-dependent devices) is highly effective. Just double-check that all extreme statistical claims (e.g., '1120% increase in heat wave exposure') have a clear, corresponding citation immediately following the claim."
+    },
+    {
+        "id": "FB-003",
+        "section": "Delphi Method",
+        "comment_type": "Methodology",
+        "severity": "Low",
+        "feedback": "Strong rationale for using the Delphi method in disaster research where RCTs are unethical or unfeasible. The breakdown of different Delphi variations (Modified vs. Policy vs. Real-Time) and mapping them to specific HBMC scenarios shows a deep, practical understanding of the methodology."
+    },
+    {
+        "id": "FB-004",
+        "section": "Subnational CPA",
+        "comment_type": "Argumentation",
+        "severity": "Medium",
+        "feedback": "The justification for scaling down to the state level is very well articulated. The explanation of causal complexity and equifinality correctly identifies why standard behavioralist approaches fail for this specific policy issue. Consider adding a brief concluding paragraph at the very end of the document tying the SCPA framework directly back to the Delphi method—how will the Delphi outputs be analyzed through the SCPA lens?"
+    },
+    {
+        "id": "FB-005",
+        "section": "Global/Entire Document",
+        "comment_type": "Formatting & Citations",
+        "severity": "High",
+        "feedback": "There are several instances of artifact superscript numbers left in the text (e.g., 'home.1', 'issues.2', 'cost-efficiency.3') alongside the bracketed '' tags. Recommend running a quick clean-up pass to standardize all in-text citations to a single format before final submission."
+    },
+    {
+        "id": "FB-006",
+        "section": "Impacts of Disasters (Conclusion)",
+        "comment_type": "Grammar/Syntax",
+        "severity": "Low",
+        "feedback": "In the paragraph starting 'Moreover, the lack of a universal definition...', the sentence 'Development of gerontological resilience metrics in gerontology is hindered overlooks how the resiliency...' seems to have a syntax error or missing words. Recommend revising for clarity."
+    },
+]
 # Maps each comps section to its relevant task IDs
 SECTION_TASKS = {
     "Introduction to HBMC": ["#7", "#13", "#14", "#32"],
@@ -3787,7 +3842,7 @@ with t8:
     st.header("🦇 EKT Hit List")
     st.caption("Committee feedback (Emily + Emma Tsui) — work through them one by one, earn XP for each.")
 
-    # Build Emily items from lab_context (status tracked via completed_tasks)
+    # Build Emily items — lab_context inline comments + structured draft feedback
     _emily_ekt_items = []
     for _etid, _ectx in lab_context.items():
         _esections = task_to_sections.get(_etid, [])
@@ -3802,6 +3857,23 @@ with t8:
             "priority": "high",
             "estimated_minutes": 20,
             "status": "done" if _etid in st.session_state.completed_tasks else "pending",
+        })
+    _sev_to_priority = {"High": "high", "Medium": "medium", "Low": "low"}
+    _sev_to_mins = {"High": 30, "Medium": 20, "Low": 15}
+    for _edf in EMILY_DRAFT_FEEDBACK:
+        _atype = _EMILY_COMMENT_TYPE_MAP.get(_edf["comment_type"], "clarification")
+        _priority = _sev_to_priority.get(_edf["severity"], "medium")
+        _emily_ekt_items.append({
+            "id": _edf["id"],
+            "task_id": _edf["id"],
+            "reviewer": "Emily",
+            "paper": "HBMC",
+            "section": _edf["section"],
+            "feedback": _edf["feedback"],
+            "action_type": _atype,
+            "priority": _priority,
+            "estimated_minutes": _sev_to_mins.get(_edf["severity"], 20),
+            "status": "done" if _edf["id"] in st.session_state.completed_tasks else "pending",
         })
 
     # Combine Emma (from cache) + Emily items
