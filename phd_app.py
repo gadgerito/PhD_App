@@ -850,7 +850,7 @@ def load_all_progress():
         d = db.find_one({"_id": "main"})
 
         if not d:
-            return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}
+            return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}
 
         return (d.get("xp", 0),
         set(d.get("completed_tasks", [])),
@@ -865,11 +865,12 @@ def load_all_progress():
         d.get("notebook_entries", []),
         d.get("section_timers", {}),
         d.get("active_timer", {}),
-        d.get("race", {})
+        d.get("race", {}),
+        d.get("daily_briefing", {})
         )
     except Exception as e:
         st.error(f"MongoDB connection error: {e}")
-        return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}
+        return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}
 
 
 def save_all_progress():
@@ -907,15 +908,65 @@ def save_all_progress():
                 "streak": st.session_state.get("race_streak", 0),
                 "best_streak": st.session_state.get("race_best_streak", 0),
             },
+            "daily_briefing": st.session_state.get("daily_briefing", {}),
         }
         db.replace_one({"_id": "main"}, data, upsert=True)
     except Exception as e:
         st.error(f"Save failed: {e}")
+def generate_daily_briefing():
+    """Generate a daily Robin mission brief and cache it to DB. Returns briefing text."""
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        _rank_icon, _rank_title, _ = get_rank(st.session_state.xp)
+        _section_timers = st.session_state.get("section_timers", {})
+        _last_section = st.session_state.get("last_worked_section", "")
+        _last_date = st.session_state.get("last_worked_date", "")
+
+        _top_sections = sorted(_section_timers.items(), key=lambda x: x[1], reverse=True)[:3]
+        _sections_str = ", ".join(f"{s} ({m}min)" for s, m in _top_sections) if _top_sections else "none yet"
+
+        _fb_cache = st.session_state.get("comps_feedback_cache", [])
+        _pending_count = sum(1 for i in _fb_cache if i.get("status") == "pending")
+        _pending_str = f"{_pending_count} feedback items still pending" if _pending_count else "no pending feedback items"
+
+        _last_draft_excerpt = ""
+        if _last_section:
+            _d = st.session_state.saved_responses.get(f"focus_draft_{_last_section}", "")
+            if _d:
+                _last_draft_excerpt = f"\nLast draft excerpt ({_last_section}): \"{_d[:200]}\""
+
+        prompt = (
+            f"You are Robin, loyal sidekick to the Caped Candidate (a PhD student finishing their dissertation). "
+            f"Generate a sharp 3-4 sentence morning mission brief.\n\n"
+            f"Status: {st.session_state.xp} XP — Rank: {_rank_title}\n"
+            f"Top sections worked: {_sections_str}\n"
+            f"Last session: {_last_section or 'none'} on {_last_date or 'unknown'}\n"
+            f"Committee feedback: {_pending_str}\n"
+            f"{_last_draft_excerpt}\n\n"
+            f"Brief: acknowledge recent progress, name today's top priority, close with one motivating line. "
+            f"Sound like Robin — sharp, loyal, energetic. 3-4 sentences max."
+        )
+
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=200,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text = response.content[0].text
+        st.session_state.daily_briefing = {"date": today, "text": text}
+        save_all_progress()
+        return text
+    except Exception as e:
+        return f"(Briefing unavailable: {e})"
+
 # ─────────────────────────────────────────────
 # 2. INITIALIZATION
 # ─────────────────────────────────────────────
 if 'initialized' not in st.session_state:
-    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers, active_timer, race_state = load_all_progress()
+    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers, active_timer, race_state, daily_briefing = load_all_progress()
     st.session_state.xp = xp
     st.session_state.completed_tasks = comp_tasks
     st.session_state.saved_responses = resps
@@ -980,6 +1031,7 @@ if 'initialized' not in st.session_state:
 
     if 'noir_mode' not in st.session_state:
         st.session_state.noir_mode = False
+    st.session_state.daily_briefing = daily_briefing
     st.session_state.initialized = True
 
 # Celebration state — read ONCE at top of render, then reset so they don't replay next run
@@ -2839,15 +2891,19 @@ drawClock();
                         _amn, _amd, _amp = _active_robin_mission
                         _mission_line = f"\nACTIVE MISSION: {_amn} ({_amp})\nMission objective: {_amd}\n"
 
+                    _draft_excerpt = (_draft[:300] + "...") if len(_draft) > 300 else _draft
+                    _today_brief_text = st.session_state.get("daily_briefing", {})
+                    _today_brief_text = _today_brief_text.get("text", "") if _today_brief_text.get("date") == datetime.now().strftime("%Y-%m-%d") else ""
+
                     system_prompt = f"""You are Robin — loyal sidekick to the Caped Candidate, who is a PhD student fighting to finish their dissertation. You are smart, sharp, and completely devoted to helping the Caped Candidate win. You speak with energy and loyalty. You know every section, every piece of committee feedback, and every deadline. Your job is to keep the Caped Candidate moving forward — no excuses, no stalling, just action.
 {_mission_line}
-{"MISSION BRIEFING — Section " + str(wt_idx+1) + " of " + str(len(_wt_sections)) if wt_active else ""}
+{("Today's mission brief:\n" + _today_brief_text + "\n") if _today_brief_text else ""}{"MISSION BRIEFING — Section " + str(wt_idx+1) + " of " + str(len(_wt_sections)) if wt_active else ""}
 Current section: **{_focus_sec}**
 {_item_ctx}
 Committee feedback:
 {_fb_ctx if _fb_ctx else "None loaded."}
 
-{"The Caped Candidate's current draft:\n" + _draft if _draft else "No draft yet."}
+{"Current draft (excerpt):\n" + _draft_excerpt if _draft_excerpt else "No draft yet."}
 
 Be direct, specific, doctoral-level. Keep responses concise — this is a sidebar. Sound like Robin: loyal, energetic, mission-focused. When a named mission is active, frame your guidance around its objective and refer to it by name."""
 
@@ -2920,6 +2976,27 @@ else:
     _msg_lines.append("*Gotham needs you. Dive in.* 🌙")
 
 st.markdown("\n\n".join(_msg_lines))
+
+# ── DAILY MISSION BRIEF ──────────────────────
+_today_key = datetime.now().strftime("%Y-%m-%d")
+_db_brief = st.session_state.get("daily_briefing", {})
+_brief_text = _db_brief.get("text", "") if _db_brief.get("date") == _today_key else ""
+
+if _brief_text:
+    st.markdown(
+        f'<div style="background:#0d2b0d;border-left:4px solid #2ecc71;border-radius:8px;'
+        f'padding:10px 14px;color:#d5f5e3;font-size:0.85rem;margin:8px 0;">'
+        f'<b style="color:#2ecc71;">🐦 Today\'s Mission Brief</b><br>{_brief_text}</div>',
+        unsafe_allow_html=True
+    )
+else:
+    _brief_col1, _brief_col2 = st.columns([3, 1])
+    with _brief_col2:
+        if st.button("🐦 Get Mission Brief", use_container_width=True, key="gen_brief_btn"):
+            with st.spinner("Robin is preparing today's brief..."):
+                _new_brief = generate_daily_briefing()
+            st.rerun()
+
 st.divider()
 
 t3, t4, t5, t6, t7, t8 = st.tabs([
