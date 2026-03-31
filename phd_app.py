@@ -492,9 +492,9 @@ if not st.session_state.authenticated:
       bmVel: 0,        // horizontal px/s; player controls with ←→
       obstacles: [],   // {x, lane, kind, w}
       coins: [],       // {x, lane, pulse}
-      spawnCd: 1.2, coinCd: 2.2,
-      baseSpeed: 280,  // obstacle approach speed
-      speed: 280,
+      spawnCd: 1.8, coinCd: 2.2,
+      baseSpeed: 160,  // obstacle approach speed
+      speed: 160,
       time: 0,
       countdown: 3, cdTimer: 0,
       hitCool: 0,      // invincibility after hit
@@ -524,7 +524,7 @@ if not st.session_state.authenticated:
       GS.phase = 'countdown'; GS.countdown = 3; GS.cdTimer = 1;
       GS.score = 0; GS.lives = 3; GS.lane = 0;
       GS.obstacles = []; GS.coins = [];
-      GS.speed = GS.baseSpeed; GS.spawnCd = 1.2; GS.coinCd = 2.2;
+      GS.speed = GS.baseSpeed; GS.spawnCd = 1.8; GS.coinCd = 2.2;
       GS.time = 0; GS.hitCool = 0; GS.flashAlpha = 0; GS.combo = 0;
       GS.bmVel = 0;
       bmX = W * 0.18;
@@ -534,7 +534,7 @@ if not st.session_state.authenticated:
       var lane = Math.random() > 0.5 ? 1 : 0;
       var kind = Math.random();
       GS.obstacles.push({ x: W + 60, lane: lane,
-        kind: kind < 0.5 ? 'car' : kind < 0.8 ? 'bomb' : 'riddler', w: 80 });
+        kind: kind < 0.5 ? 'car' : kind < 0.8 ? 'bomb' : 'riddler', w: 52 });
     }
     function spawnCoin() {
       GS.coins.push({ x: W + 30, lane: Math.random() > 0.5 ? 1 : 0, pulse: 0 });
@@ -575,12 +575,12 @@ if not st.session_state.authenticated:
         GS.time += dt;
         GS.score = Math.floor(GS.time * 10);
         // Ramp difficulty
-        GS.baseSpeed = 280 + Math.floor(GS.time / 8) * 30;
+        GS.baseSpeed = 160 + Math.floor(GS.time / 10) * 20;
         GS.speed = GS.baseSpeed;
 
         // Spawn
         GS.spawnCd -= dt;
-        if (GS.spawnCd <= 0) { spawnObstacle(); GS.spawnCd = Math.max(0.5, 1.4 - GS.time * 0.018); }
+        if (GS.spawnCd <= 0) { spawnObstacle(); GS.spawnCd = Math.max(0.9, 1.8 - GS.time * 0.015); }
         GS.coinCd -= dt;
         if (GS.coinCd <= 0) { spawnCoin(); GS.coinCd = 2.5 + Math.random() * 1.5; }
 
