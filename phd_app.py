@@ -1724,7 +1724,7 @@ drawClock();
                             f"ID: {_ekt_item.get('id', '?')}\n"
                             f"Section: {_ekt_item.get('section', '?')}\n"
                             f"Paper: {_ekt_item.get('paper', '?')}\n"
-                            f"Type: {_ekt_item.get('action_type', '?')} | Priority: {_ekt_item.get('priority', '?')} | "
+                            f"Triage: {_ekt_item.get('action_type', '?')} | Priority: {_ekt_item.get('priority', '?')} | "
                             f"Est. time: ~{_ekt_item.get('estimated_minutes', '?')} min\n"
                             f"Reviewer: {_ekt_item.get('reviewer', '?')}\n\n"
                             f"Feedback comment:\n\"{_ekt_item.get('feedback', '')}\"\n\n"
@@ -3938,7 +3938,7 @@ with t8:
             key="ekt_paper_filter"
         )
         _ekt_type_filter = _ekt_col2.selectbox(
-            "Type:", ["All", "quick_fix", "clarification", "substantive", "major"],
+            "Triage:", ["All", "quick_fix", "clarification", "substantive", "major"],
             key="ekt_type_filter"
         )
         _ekt_status_filter = _ekt_col3.selectbox(
@@ -4208,7 +4208,7 @@ with t8:
                                 text=f"{_paper}: {len(_paper_done)}/{len(_paper_items)}")
 
         with _stats_col3:
-            st.markdown("**By Type:**")
+            st.markdown("**By Triage:**")
             for _atype, _icon in [("quick_fix", "⚡"), ("clarification", "💬"), ("substantive", "📝"), ("major", "🏗️")]:
                 _type_items = [f for f in _ekt_items if f.get("action_type") == _atype]
                 _type_done = [f for f in _type_items if f.get("status") != "pending"]
