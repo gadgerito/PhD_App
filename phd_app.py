@@ -2979,6 +2979,78 @@ Be direct, specific, doctoral-level. Keep responses concise — this is a sideba
     _coach_log = st.session_state.get("coach_log", [])
     if _coach_log:
         with st.expander(f"📜 Coach History ({len(_coach_log)} exchanges)", expanded=False):
+            # Export buttons
+            _exp_col1, _exp_col2 = st.columns(2)
+
+            def _build_coach_docx(log):
+                from docx import Document
+                from docx.shared import Pt, RGBColor
+                from io import BytesIO
+                doc = Document()
+                doc.add_heading("Robin Coach History", 0)
+                for entry in log:
+                    doc.add_heading(f"{entry['date']} · {entry['section']}", level=2)
+                    q_para = doc.add_paragraph()
+                    q_run = q_para.add_run(f"You: {entry['question']}")
+                    q_run.bold = True
+                    a_para = doc.add_paragraph()
+                    a_run = a_para.add_run(f"Robin: {entry['answer']}")
+                    a_run.font.color.rgb = RGBColor(0x1a, 0x1a, 0x2e)
+                    doc.add_paragraph()
+                buf = BytesIO()
+                doc.save(buf)
+                buf.seek(0)
+                return buf.read()
+
+            def _build_coach_pdf(log):
+                from fpdf import FPDF
+                from io import BytesIO
+                pdf = FPDF()
+                pdf.set_auto_page_break(auto=True, margin=15)
+                pdf.add_page()
+                pdf.set_font("Helvetica", "B", 16)
+                pdf.cell(0, 10, "Robin Coach History", ln=True)
+                pdf.ln(4)
+                for entry in log:
+                    pdf.set_font("Helvetica", "B", 11)
+                    header = f"{entry['date']}  |  {entry['section']}"
+                    pdf.cell(0, 8, header, ln=True)
+                    pdf.set_font("Helvetica", "B", 10)
+                    pdf.cell(0, 6, "You:", ln=True)
+                    pdf.set_font("Helvetica", "", 10)
+                    pdf.multi_cell(0, 5, entry["question"])
+                    pdf.set_font("Helvetica", "B", 10)
+                    pdf.cell(0, 6, "Robin:", ln=True)
+                    pdf.set_font("Helvetica", "", 10)
+                    pdf.multi_cell(0, 5, entry["answer"])
+                    pdf.ln(4)
+                    pdf.set_draw_color(200, 200, 200)
+                    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                    pdf.ln(4)
+                return bytes(pdf.output())
+
+            with _exp_col1:
+                _docx_bytes = _build_coach_docx(_coach_log)
+                st.download_button(
+                    "⬇️ Export Word",
+                    data=_docx_bytes,
+                    file_name="robin_coach_history.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True,
+                    key="coach_export_docx"
+                )
+            with _exp_col2:
+                _pdf_bytes = _build_coach_pdf(_coach_log)
+                st.download_button(
+                    "⬇️ Export PDF",
+                    data=_pdf_bytes,
+                    file_name="robin_coach_history.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="coach_export_pdf"
+                )
+
+            st.divider()
             for _log_entry in reversed(_coach_log):
                 st.markdown(f"**{_log_entry['date']} · {_log_entry['section']}**")
                 st.markdown(

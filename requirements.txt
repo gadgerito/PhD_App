@@ -2,3 +2,5 @@ streamlit
 pymongo
 pandas
 anthropic
+python-docx
+fpdf2
