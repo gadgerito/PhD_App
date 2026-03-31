@@ -850,7 +850,7 @@ def load_all_progress():
         d = db.find_one({"_id": "main"})
 
         if not d:
-            return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}, {}, {}
+            return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}, {}, {}, []
 
         return (d.get("xp", 0),
         set(d.get("completed_tasks", [])),
@@ -868,11 +868,12 @@ def load_all_progress():
         d.get("race", {}),
         d.get("daily_briefing", {}),
         d.get("synonym_cache", {}),
-        d.get("briefing_cache", {})
+        d.get("briefing_cache", {}),
+        d.get("coach_log", [])
         )
     except Exception as e:
         st.error(f"MongoDB connection error: {e}")
-        return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}, {}, {}
+        return 0, set(), {}, {}, [], [], {}, "", "", "", [], {}, {}, {}, {}, {}, {}, []
 
 
 def save_all_progress():
@@ -913,6 +914,7 @@ def save_all_progress():
             "daily_briefing": st.session_state.get("daily_briefing", {}),
             "synonym_cache": st.session_state.get("synonym_cache", {}),
             "briefing_cache": st.session_state.get("briefing_cache", {}),
+            "coach_log": st.session_state.get("coach_log", []),
         }
         db.replace_one({"_id": "main"}, data, upsert=True)
     except Exception as e:
@@ -966,11 +968,27 @@ def generate_daily_briefing():
     except Exception as e:
         return f"(Briefing unavailable: {e})"
 
+
+def _flush_coach_log(section_name: str = ""):
+    """Save current coach_messages to coach_log if there's anything worth keeping."""
+    msgs = st.session_state.get("coach_messages", [])
+    # Only log sessions that have at least one real back-and-forth
+    if sum(1 for m in msgs if m["role"] == "user") == 0:
+        return
+    entry = {
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "section": section_name or st.session_state.get("last_worked_section", "Unknown"),
+        "messages": list(msgs),
+    }
+    st.session_state.setdefault("coach_log", []).append(entry)
+    save_all_progress()
+
+
 # ─────────────────────────────────────────────
 # 2. INITIALIZATION
 # ─────────────────────────────────────────────
 if 'initialized' not in st.session_state:
-    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers, active_timer, race_state, daily_briefing, synonym_cache, briefing_cache = load_all_progress()
+    xp, comp_tasks, resps, timers, custom_r, claimed, vault, last_task, last_worked_section, last_worked_date, notebook, section_timers, active_timer, race_state, daily_briefing, synonym_cache, briefing_cache, coach_log = load_all_progress()
     st.session_state.xp = xp
     st.session_state.completed_tasks = comp_tasks
     st.session_state.saved_responses = resps
@@ -1038,6 +1056,7 @@ if 'initialized' not in st.session_state:
     st.session_state.daily_briefing = daily_briefing
     st.session_state.synonym_cache = synonym_cache
     st.session_state.briefing_cache = briefing_cache
+    st.session_state.coach_log = coach_log
     st.session_state.initialized = True
 
 # Celebration state — read ONCE at top of render, then reset so they don't replay next run
@@ -2761,6 +2780,7 @@ drawClock();
 
         nav1, nav2, nav3 = st.columns(3)
         if nav1.button("◀ Prev", key="wt_prev", use_container_width=True, disabled=(wt_idx == 0)):
+            _flush_coach_log(_wt_sections[wt_idx])
             st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
             st.session_state.walkthrough_idx -= 1
             new_idx = st.session_state.walkthrough_idx
@@ -2770,6 +2790,7 @@ drawClock();
             st.session_state.focus_section_select = _wt_sections[new_idx]
             st.rerun()
         if nav2.button("Next ▶", key="wt_next", use_container_width=True, disabled=(wt_idx >= len(_wt_sections)-1)):
+            _flush_coach_log(_wt_sections[wt_idx])
             st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
             st.session_state.walkthrough_idx += 1
             new_idx = st.session_state.walkthrough_idx
@@ -2779,6 +2800,7 @@ drawClock();
             st.session_state.focus_section_select = _wt_sections[new_idx]
             st.rerun()
         if nav3.button("✖ End", key="wt_end", use_container_width=True):
+            _flush_coach_log(_wt_sections[wt_idx])
             st.session_state.coach_messages_by_idx[wt_idx] = list(st.session_state.coach_messages)
             st.session_state.walkthrough_active = False
             st.session_state.coach_messages = []
@@ -2953,9 +2975,31 @@ Be direct, specific, doctoral-level. Keep responses concise — this is a sideba
             st.warning("Type something first!")
 
     if coach_col2.button("🗑️ Clear", use_container_width=True, key="coach_clear"):
+        _flush_coach_log(current_wt_sec)
         st.session_state.coach_messages = []
         st.session_state.walkthrough_introduced = -1
         st.rerun()
+
+    # ── Coach conversation log ──
+    _coach_log = st.session_state.get("coach_log", [])
+    if _coach_log:
+        with st.expander(f"📜 Coach History ({len(_coach_log)} sessions)", expanded=False):
+            for _log_entry in reversed(_coach_log):
+                st.markdown(f"**{_log_entry['date']} · {_log_entry['section']}**")
+                for _lm in _log_entry["messages"]:
+                    if _lm["role"] == "user":
+                        st.markdown(
+                            f'<div style="background:#1a1410;color:#f5f0e8;padding:8px 12px;'
+                            f'border-radius:10px 2px 10px 10px;margin:4px 0 4px 32px;font-size:13px;">👤 {_lm["content"]}</div>',
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.markdown(
+                            f'<div style="background:#fff;border:1px solid #d4c9b8;color:#1a1410;padding:8px 12px;'
+                            f'border-radius:2px 10px 10px 10px;margin:4px 32px 4px 0;font-size:13px;">🐦 {_lm["content"]}</div>',
+                            unsafe_allow_html=True
+                        )
+                st.divider()
 
 # ─────────────────────────────────────────────
 # 11. TABS
