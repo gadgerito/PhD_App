@@ -119,14 +119,16 @@ def _send(user_text: str, client: Anthropic, context_prompt: str = ""):
     st.session_state.comps_messages.append({"role": "user", "content": user_text})
     st.session_state.comps_loading = True
 
-    system_prompt = COMPS_SYSTEM_PROMPT
+    # COMPS_SYSTEM_PROMPT is large and static — mark it cacheable so repeated
+    # messages in the same session pay ~10% of the token cost after the first call.
+    system = [{"type": "text", "text": COMPS_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
     if context_prompt:
-        system_prompt += f"\n\n{context_prompt}"
+        system.append({"type": "text", "text": context_prompt})
 
     response = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=1024,
-        system=system_prompt,
+        system=system,
         messages=st.session_state.comps_messages,
     )
     reply = response.content[0].text

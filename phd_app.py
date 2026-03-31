@@ -3919,15 +3919,19 @@ with t5:
                 import anthropic
                 client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
 
-                prompt = f"""You are an expert dissertation committee member specializing in public health, aging, health policy, geriatrics, and disaster preparedness.
+                # Stable block: persona + section identity + content (static per section).
+                # Marked cacheable so switching feedback types on the same section
+                # only pays full input cost once.
+                _stable = f"""You are an expert dissertation committee member specializing in public health, aging, health policy, geriatrics, and disaster preparedness.
 
 Paper: {current_section['paper']}
 Section: {current_section['title']}
 
 Section content:
-\"\"\"{current_section['content']}\"\"\"
+\"\"\"{current_section['content']}\"\"\""""
 
-{f'Student notes: {user_notes}' if user_notes else ''}
+                # Dynamic block: changes with feedback type and user notes.
+                _dynamic = f"""{f'Student notes: {user_notes}' if user_notes else ''}
 
 {feedback_prompts[feedback_type]}
 
@@ -3941,7 +3945,10 @@ Format your response with these headers:
                 message = client.messages.create(
                     model="claude-sonnet-4-20250514",
                     max_tokens=1500,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": [
+                        {"type": "text", "text": _stable, "cache_control": {"type": "ephemeral"}},
+                        {"type": "text", "text": _dynamic}
+                    ]}]
                 )
 
                 feedback = message.content[0].text
