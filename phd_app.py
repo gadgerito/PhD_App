@@ -307,6 +307,14 @@ ROBIN_MISSIONS = {
     ],
 }
 
+# Maps EKT action_type → the Robin mission that best fits it
+EKT_MISSION_MAP = {
+    "quick_fix":     ("Neutralizing the Riddler",    "Rewriting the overly academic or unclear sentence so it actually says what you mean.",       "Phase 3: The Final Polish (Proofreading & Formatting)"),
+    "clarification": ("Commissioner Gordon's Signal", "Responding directly to a committee question that needs a clear, targeted answer.",            "Phase 4: Dealing with Advisors (Feedback)"),
+    "substantive":   ("The Long Halloween",           "Deep revision work — hunting down one specific argument and making it bulletproof.",          "Phase 1: The Heavy Lifting (Structural Editing)"),
+    "major":         ("Operation: Knightfall",        "Breaking down a major section and rebuilding it from the bones. This one takes endurance.",   "Phase 1: The Heavy Lifting (Structural Editing)"),
+}
+
 # Flat list for easy random selection or display
 ROBIN_MISSIONS_FLAT = [
     (phase, name, desc)
@@ -4022,8 +4030,12 @@ with t8:
                     st.session_state.coach_messages = []
 
             # Always keep ekt_active_item pointing at the currently displayed item
+            # and sync the sidebar Robin mission to match its action_type
             if st.session_state.get("ekt_active_item", {}).get("id") != _item.get("id"):
                 st.session_state.ekt_active_item = _item
+                _atype = _item.get("action_type", "")
+                if _atype in EKT_MISSION_MAP:
+                    st.session_state.robin_active_mission = EKT_MISSION_MAP[_atype]
 
             _nav_col1, _nav_col2, _nav_col3 = st.columns([1, 4, 1])
             if _nav_col1.button("⬅️ Prev", key="ekt_prev", use_container_width=True):
