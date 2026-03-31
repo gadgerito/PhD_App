@@ -1105,6 +1105,13 @@ EKT_MISSION_MAP = {
     "major":         ("Operation: Knightfall",        "Breaking down a major section and rebuilding it from the bones. This one takes endurance.",   "Phase 1: The Heavy Lifting (Structural Editing)"),
 }
 
+# Maps master_tasks "type" field → Robin mission (same tuple format as EKT_MISSION_MAP)
+TASK_TYPE_MISSION_MAP = {
+    "Quick Win":     ("Neutralizing the Riddler",    "A targeted fix — clean it up, sharpen it, and move on. Precision over brute force.",         "Phase 3: The Final Polish (Proofreading & Formatting)"),
+    "Deep Work":     ("Operation: Knightfall",       "Breaking down a heavy section and rebuilding it from the bones. This one takes endurance.",  "Phase 1: The Heavy Lifting (Structural Editing)"),
+    "Resource Hunt": ("The Oracle Audit",            "Tracking down the right citation or data point and weaving it into the argument cleanly.",   "Phase 2: The Data & Policy Check (Health Specifics)"),
+}
+
 # Flat list for easy random selection or display
 ROBIN_MISSIONS_FLAT = [
     (phase, name, desc)
@@ -2082,6 +2089,7 @@ with st.sidebar:
     )
     st.divider()
 
+    _task_lookup = {i['id']: i for cat in master_tasks.values() for i in cat}
     all_tasks_flat = [
         f"{i['id']}: {i['task']}"
         for cat in master_tasks.values()
@@ -2093,6 +2101,15 @@ with st.sidebar:
     _ekt_focused = bool(st.session_state.get("ekt_active_item", {}).get("id"))
     if not st.session_state.get('timer_running') and not _ekt_focused:
         st.session_state.active_mission = selected_mission
+        # Auto-activate Robin mission based on task type (triage)
+        if selected_mission != "General Deep Work":
+            _sel_id = selected_mission.split(":")[0].strip()
+            _sel_task = _task_lookup.get(_sel_id)
+            if _sel_task:
+                _ttype = _sel_task.get("type", "")
+                _mission_tuple = TASK_TYPE_MISSION_MAP.get(_ttype)
+                if _mission_tuple:
+                    st.session_state.robin_active_mission = _mission_tuple
 
     # Show active Committee Feedback item when one is selected
     _active_ekt = st.session_state.get("ekt_active_item", {})
