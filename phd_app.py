@@ -24,10 +24,271 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
+    st.markdown("""
+<style>
+body, .stApp { background:#0a0a14 !important; }
+.login-wrap {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+.login-skyline {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.18;
+}
+.login-box {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    padding: 48px 40px 40px 40px;
+    background: rgba(10,10,20,0.72);
+    border: 1px solid rgba(241,196,15,0.25);
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+    min-width: 320px;
+    max-width: 380px;
+}
+.login-title {
+    color: #f1c40f;
+    font-size: 1.05rem;
+    letter-spacing: 0.22em;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-family: monospace;
+}
+.login-sub {
+    color: #888;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    margin-bottom: 28px;
+    font-family: monospace;
+}
+</style>
+
+<!-- NYC Skyline SVG — silhouette, transparent fill -->
+<div class="login-skyline">
+<svg viewBox="0 0 1440 340" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax meet">
+  <!-- Far background layer (lightest) -->
+  <g fill="#c8d4e8" opacity="0.35">
+    <rect x="0"    y="280" width="60"  height="60"/>
+    <rect x="18"   y="255" width="22"  height="26"/>
+    <rect x="62"   y="270" width="45"  height="70"/>
+    <rect x="75"   y="252" width="16"  height="20"/>
+    <rect x="110"  y="260" width="38"  height="80"/>
+    <rect x="122"  y="238" width="12"  height="24"/>
+    <rect x="150"  y="268" width="50"  height="72"/>
+    <rect x="162"  y="248" width="18"  height="22"/>
+    <rect x="202"  y="272" width="40"  height="68"/>
+    <rect x="245"  y="258" width="55"  height="82"/>
+    <rect x="258"  y="238" width="18"  height="22"/>
+    <rect x="303"  y="265" width="42"  height="75"/>
+    <rect x="348"  y="255" width="60"  height="85"/>
+    <rect x="362"  y="232" width="20"  height="25"/>
+    <rect x="411"  y="270" width="44"  height="70"/>
+    <rect x="458"  y="260" width="38"  height="80"/>
+    <rect x="499"  y="252" width="52"  height="88"/>
+    <rect x="514"  y="228" width="16"  height="26"/>
+    <rect x="554"  y="265" width="46"  height="75"/>
+    <rect x="603"  y="258" width="40"  height="82"/>
+    <rect x="646"  y="270" width="55"  height="70"/>
+    <rect x="704"  y="255" width="42"  height="85"/>
+    <rect x="749"  y="262" width="38"  height="78"/>
+    <rect x="790"  y="248" width="50"  height="92"/>
+    <rect x="843"  y="265" width="44"  height="75"/>
+    <rect x="890"  y="258" width="60"  height="82"/>
+    <rect x="953"  y="270" width="40"  height="70"/>
+    <rect x="996"  y="252" width="46"  height="88"/>
+    <rect x="1045" y="260" width="38"  height="80"/>
+    <rect x="1086" y="268" width="55"  height="72"/>
+    <rect x="1144" y="255" width="42"  height="85"/>
+    <rect x="1189" y="265" width="48"  height="75"/>
+    <rect x="1240" y="258" width="40"  height="82"/>
+    <rect x="1283" y="270" width="58"  height="70"/>
+    <rect x="1344" y="252" width="44"  height="88"/>
+    <rect x="1391" y="262" width="49"  height="78"/>
+  </g>
+
+  <!-- Mid layer -->
+  <g fill="#b0c0dc" opacity="0.55">
+    <!-- Left cluster (Financial District-ish) -->
+    <rect x="0"   y="265" width="28"  height="75"/>
+    <rect x="6"   y="245" width="14"  height="22"/>
+    <rect x="30"  y="240" width="34"  height="100"/>
+    <rect x="38"  y="218" width="16"  height="24"/>
+    <rect x="66"  y="250" width="30"  height="90"/>
+    <rect x="72"  y="230" width="14"  height="22"/>
+    <rect x="98"  y="242" width="40"  height="98"/>
+    <rect x="108" y="218" width="18"  height="26"/>
+    <rect x="140" y="255" width="28"  height="85"/>
+    <rect x="170" y="235" width="36"  height="105"/>
+    <rect x="180" y="210" width="14"  height="27"/>
+    <rect x="208" y="248" width="32"  height="92"/>
+
+    <!-- Midtown left -->
+    <rect x="290" y="230" width="38"  height="110"/>
+    <rect x="302" y="205" width="12"  height="28"/>
+    <rect x="330" y="242" width="44"  height="98"/>
+    <rect x="344" y="218" width="16"  height="26"/>
+    <rect x="376" y="235" width="36"  height="105"/>
+    <rect x="415" y="225" width="50"  height="115"/>
+    <rect x="428" y="198" width="20"  height="30"/>
+    <rect x="468" y="240" width="34"  height="100"/>
+
+    <!-- Empire State-ish tower -->
+    <rect x="540" y="185" width="42"  height="155"/>
+    <rect x="552" y="162" width="18"  height="26"/>
+    <rect x="558" y="148" width="6"   height="16"/>
+    <rect x="584" y="218" width="30"  height="122"/>
+
+    <!-- Chrysler-ish -->
+    <rect x="640" y="200" width="36"  height="140"/>
+    <rect x="648" y="178" width="20"  height="24"/>
+    <polygon points="658,148 668,148 663,130" fill="#b0c0dc"/>
+    <rect x="678" y="228" width="28"  height="112"/>
+
+    <!-- Midtown right cluster -->
+    <rect x="710" y="220" width="40"  height="120"/>
+    <rect x="720" y="198" width="18"  height="24"/>
+    <rect x="752" y="235" width="34"  height="105"/>
+    <rect x="788" y="215" width="48"  height="125"/>
+    <rect x="800" y="188" width="22"  height="30"/>
+    <rect x="838" y="230" width="36"  height="110"/>
+
+    <!-- Upper midtown -->
+    <rect x="880" y="240" width="44"  height="100"/>
+    <rect x="926" y="228" width="38"  height="112"/>
+    <rect x="936" y="205" width="16"  height="25"/>
+    <rect x="966" y="245" width="32"  height="95"/>
+
+    <!-- Right cluster (Upper East-ish) -->
+    <rect x="1010" y="252" width="36"  height="88"/>
+    <rect x="1048" y="238" width="44"  height="102"/>
+    <rect x="1058" y="215" width="20"  height="25"/>
+    <rect x="1094" y="248" width="38"  height="92"/>
+    <rect x="1134" y="235" width="46"  height="105"/>
+    <rect x="1148" y="210" width="18"  height="27"/>
+    <rect x="1182" y="250" width="34"  height="90"/>
+    <rect x="1218" y="242" width="40"  height="98"/>
+    <rect x="1228" y="220" width="16"  height="24"/>
+    <rect x="1260" y="255" width="36"  height="85"/>
+    <rect x="1298" y="240" width="48"  height="100"/>
+    <rect x="1312" y="218" width="18"  height="24"/>
+    <rect x="1348" y="252" width="36"  height="88"/>
+    <rect x="1386" y="245" width="54"  height="95"/>
+  </g>
+
+  <!-- Front layer — dense, darkest -->
+  <g fill="#8898b8" opacity="0.75">
+    <!-- Financial / Lower Manhattan -->
+    <rect x="0"   y="275" width="22"  height="65"/>
+    <rect x="24"  y="258" width="18"  height="82"/>
+    <rect x="44"  y="248" width="26"  height="92"/>
+    <rect x="50"  y="228" width="12"  height="22"/>
+    <rect x="72"  y="255" width="20"  height="85"/>
+    <rect x="94"  y="240" width="32"  height="100"/>
+    <rect x="100" y="218" width="18"  height="24"/>
+    <rect x="128" y="260" width="24"  height="80"/>
+    <rect x="154" y="245" width="28"  height="95"/>
+    <rect x="160" y="224" width="14"  height="23"/>
+    <rect x="184" y="252" width="22"  height="88"/>
+    <rect x="208" y="238" width="30"  height="102"/>
+    <rect x="218" y="215" width="12"  height="25"/>
+
+    <!-- Broad midtown -->
+    <rect x="260" y="222" width="36"  height="118"/>
+    <rect x="272" y="198" width="14"  height="26"/>
+    <rect x="298" y="238" width="28"  height="102"/>
+    <rect x="328" y="215" width="44"  height="125"/>
+    <rect x="340" y="192" width="18"  height="25"/>
+
+    <!-- One WTC-ish spire -->
+    <rect x="374" y="100" width="30"  height="240"/>
+    <rect x="380" y="82"  width="18"  height="20"/>
+    <rect x="385" y="64"  width="8"   height="20"/>
+    <rect x="406" y="195" width="22"  height="145"/>
+
+    <!-- Empire State cluster -->
+    <rect x="430" y="158" width="48"  height="182"/>
+    <rect x="442" y="135" width="24"  height="25"/>
+    <rect x="448" y="118" width="12"  height="19"/>
+    <rect x="451" y="106" width="6"   height="14"/>  <!-- antenna -->
+    <rect x="480" y="210" width="26"  height="130"/>
+
+    <!-- Chrysler-ish front -->
+    <rect x="510" y="172" width="44"  height="168"/>
+    <rect x="520" y="148" width="24"  height="26"/>
+    <polygon points="532,120 544,120 538,96" fill="#8898b8"/>
+    <rect x="556" y="225" width="22"  height="115"/>
+
+    <!-- Dense mid-right -->
+    <rect x="580" y="210" width="38"  height="130"/>
+    <rect x="590" y="188" width="18"  height="24"/>
+    <rect x="620" y="225" width="30"  height="115"/>
+    <rect x="652" y="205" width="42"  height="135"/>
+    <rect x="664" y="182" width="18"  height="25"/>
+    <rect x="696" y="220" width="34"  height="120"/>
+    <rect x="706" y="198" width="14"  height="24"/>
+
+    <!-- Right midtown -->
+    <rect x="732" y="215" width="40"  height="125"/>
+    <rect x="744" y="192" width="16"  height="25"/>
+    <rect x="774" y="228" width="32"  height="112"/>
+    <rect x="808" y="210" width="46"  height="130"/>
+    <rect x="820" y="188" width="20"  height="24"/>
+    <rect x="856" y="225" width="36"  height="115"/>
+
+    <!-- Transition to upper -->
+    <rect x="894" y="238" width="28"  height="102"/>
+    <rect x="924" y="220" width="40"  height="120"/>
+    <rect x="934" y="198" width="18"  height="24"/>
+    <rect x="966" y="232" width="32"  height="108"/>
+
+    <!-- Upper East side-ish -->
+    <rect x="1000" y="245" width="30"  height="95"/>
+    <rect x="1032" y="230" width="38"  height="110"/>
+    <rect x="1042" y="208" width="16"  height="24"/>
+    <rect x="1072" y="242" width="28"  height="98"/>
+    <rect x="1102" y="228" width="44"  height="112"/>
+    <rect x="1114" y="205" width="18"  height="25"/>
+    <rect x="1148" y="240" width="32"  height="100"/>
+    <rect x="1182" y="225" width="40"  height="115"/>
+    <rect x="1192" y="202" width="18"  height="25"/>
+    <rect x="1224" y="238" width="34"  height="102"/>
+    <rect x="1260" y="248" width="28"  height="92"/>
+    <rect x="1290" y="232" width="44"  height="108"/>
+    <rect x="1302" y="210" width="18"  height="24"/>
+    <rect x="1336" y="245" width="30"  height="95"/>
+    <rect x="1368" y="230" width="42"  height="110"/>
+    <rect x="1412" y="242" width="28"  height="98"/>
+  </g>
+
+  <!-- Ground plane -->
+  <rect x="0" y="338" width="1440" height="4" fill="#6878a0" opacity="0.6"/>
+</svg>
+</div>
+<div class="login-wrap">
+  <div class="login-box">
+    <div style="font-size:2.8rem;margin-bottom:8px;">🦇</div>
+    <div class="login-title">Bat-Computer</div>
+    <div class="login-sub">Gotham City · Secure Terminal</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("## 🦇 Bat-Computer Access")
-        pwd = st.text_input("Password", type="password", label_visibility="collapsed")
+        pwd = st.text_input("Password", type="password", label_visibility="collapsed",
+                            placeholder="Enter access code...")
         if st.button("Enter the Batcave", use_container_width=True):
             if pwd == st.secrets["app_password"]:
                 st.session_state.authenticated = True
