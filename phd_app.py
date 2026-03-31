@@ -281,6 +281,22 @@ if not st.session_state.authenticated:
             else:
                 st.error("Access Denied. This is not your city.")
     st.stop()
+
+# Clean up any login page DOM injections (dark background, skyline, plane) that persist across reruns
+components.html("""
+<script>
+(function(){
+  var pd = window.parent.document;
+  ['login-style','nyc-skyline','login-plane'].forEach(function(id){
+    var el = pd.getElementById(id);
+    if (el) el.remove();
+  });
+  // Also nuke any leftover trail canvas (no id, but parent is body and it's a canvas)
+  // The plane animation cleans its own canvas, so nothing extra needed
+})();
+</script>
+""", height=0)
+
 # -- MongoDB --
 @st.cache_resource
 def get_mongo_db():
