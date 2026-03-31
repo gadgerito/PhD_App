@@ -489,7 +489,7 @@ if not st.session_state.authenticated:
       phase: 'idle',   // idle | countdown | playing | gameover
       score: 0, hiScore: 0, lives: 3,
       lane: 0,         // 0=lower 1=upper
-      bmVel: 180,      // horizontal px/s (always moving right in idle/playing)
+      bmVel: 0,        // horizontal px/s; player controls with ←→
       obstacles: [],   // {x, lane, kind, w}
       coins: [],       // {x, lane, pulse}
       spawnCd: 1.2, coinCd: 2.2,
@@ -514,8 +514,6 @@ if not st.session_state.authenticated:
         if (GS.phase === 'playing') {
           if (k === 'ArrowUp'   && GS.lane === 0 && GS.laneChangeCd <= 0) { GS.lane = 1; GS.laneChangeCd = 0.22; }
           if (k === 'ArrowDown' && GS.lane === 1 && GS.laneChangeCd <= 0) { GS.lane = 0; GS.laneChangeCd = 0.22; }
-          if (k === 'ArrowRight') GS.speed = Math.min(GS.speed + 80, GS.baseSpeed + 240);
-          if (k === 'ArrowLeft')  GS.speed = Math.max(GS.speed - 80, GS.baseSpeed - 140);
         }
       }
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(k) > -1) e.preventDefault();
@@ -528,6 +526,7 @@ if not st.session_state.authenticated:
       GS.obstacles = []; GS.coins = [];
       GS.speed = GS.baseSpeed; GS.spawnCd = 1.2; GS.coinCd = 2.2;
       GS.time = 0; GS.hitCool = 0; GS.flashAlpha = 0; GS.combo = 0;
+      GS.bmVel = 0;
       bmX = W * 0.18;
     }
 
@@ -577,7 +576,7 @@ if not st.session_state.authenticated:
         GS.score = Math.floor(GS.time * 10);
         // Ramp difficulty
         GS.baseSpeed = 280 + Math.floor(GS.time / 8) * 30;
-        GS.speed = Math.max(GS.baseSpeed - 140, Math.min(GS.speed, GS.baseSpeed + 240));
+        GS.speed = GS.baseSpeed;
 
         // Spawn
         GS.spawnCd -= dt;
@@ -615,9 +614,20 @@ if not st.session_state.authenticated:
         GS.flashAlpha = Math.max(0, GS.flashAlpha - dt * 1.2);
       }
 
-      // ── Move batmobile ──
+      // ── Move batmobile (←→ keys control car, ↑↓ switch lanes) ──
+      if (GS.phase === 'playing') {
+        var targetVel = 0;
+        if (keys['ArrowRight']) targetVel = 420;
+        else if (keys['ArrowLeft']) targetVel = -420;
+        var accel = 1800;
+        if (GS.bmVel < targetVel) GS.bmVel = Math.min(GS.bmVel + accel * dt, targetVel);
+        else if (GS.bmVel > targetVel) GS.bmVel = Math.max(GS.bmVel - accel * dt, targetVel);
+      } else {
+        GS.bmVel = 0;
+      }
       bmX += GS.bmVel * dt;
-      if (bmX > sw - BW) { bmX = sw - BW; }
+      if (bmX < 0) bmX = 0;
+      if (bmX > sw - BW) bmX = sw - BW;
 
       // Position
       var targetY = LANE_Y[GS.lane];
