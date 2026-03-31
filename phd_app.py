@@ -1050,6 +1050,35 @@ def render_rank_badge(xp):
         st.markdown('<div class="rank-next">🏆 Maximum rank achieved!</div>', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
+# 3b. PROGRESS BADGES
+# ─────────────────────────────────────────────
+# Each badge: (id, icon, label, color, condition_fn(completed_set, master_tasks))
+PROGRESS_BADGES = [
+    ("first_strike",  "🥊", "First Strike",    "#e67e22", lambda c, m: len(c) >= 1),
+    ("quick_draw",    "⚡", "Quick Draw",       "#f1c40f", lambda c, m: sum(1 for cat in m.values() for t in cat if t["type"] == "Quick Win" and t["id"] in c) >= 3),
+    ("into_the_deep", "🔬", "Into the Deep",   "#2980b9", lambda c, m: sum(1 for cat in m.values() for t in cat if t["type"] == "Deep Work" and t["id"] in c) >= 5),
+    ("oracle_eye",    "🔍", "Oracle's Eye",    "#8e44ad", lambda c, m: sum(1 for cat in m.values() for t in cat if t["type"] == "Resource Hunt" and t["id"] in c) >= 2),
+    ("section_clear", "🏛️", "Section Clear",   "#1abc9c", lambda c, m: any(all(t["id"] in c for t in items) for items in m.values())),
+    ("half_knight",   "🌓", "Half Knight",     "#34495e", lambda c, m: len(c) / max(sum(len(v) for v in m.values()), 1) >= 0.5),
+    ("dark_knight",   "🦇", "The Dark Knight", "#f1c40f", lambda c, m: len(c) / max(sum(len(v) for v in m.values()), 1) >= 1.0),
+]
+
+def render_progress_badges(completed_set, master_tasks):
+    earned = [(icon, label, color) for bid, icon, label, color, fn in PROGRESS_BADGES if fn(completed_set, master_tasks)]
+    if not earned:
+        return
+    chips = "".join(
+        f'<span style="display:inline-block;margin:2px 3px;padding:3px 9px;border-radius:12px;'
+        f'font-size:0.72rem;font-weight:600;background:{col}22;border:1px solid {col};color:{col};">'
+        f'{icon} {label}</span>'
+        for icon, label, col in earned
+    )
+    st.markdown(
+        f'<div style="margin:6px 0 4px 0;line-height:1.8;">{chips}</div>',
+        unsafe_allow_html=True
+    )
+
+# ─────────────────────────────────────────────
 # 4. BATMAN QUOTES
 # ─────────────────────────────────────────────
 BATMAN_QUOTES = [
@@ -2044,6 +2073,7 @@ with st.sidebar:
         st.rerun()
     st.metric("Total XP", st.session_state.xp)
     render_rank_badge(st.session_state.xp)
+    render_progress_badges(st.session_state.completed_tasks, master_tasks)
 
     with st.expander("➕ Add XP Manually"):
         _manual_xp = st.number_input("XP to add", min_value=1, max_value=500, value=10, step=5, key="manual_xp_input")
