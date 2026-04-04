@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import json
 import os
 import time
+import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 import random
@@ -835,6 +836,85 @@ def get_mongo_db():
 
 def get_db():
     return get_mongo_db()["progress"]
+
+# ─────────────────────────────────────────────
+# SQLITE — tasks & sessions
+# ─────────────────────────────────────────────
+_SQLITE_PATH = str(Path(__file__).parent / "phd_tasks.db")
+
+def get_sqlite_conn():
+    conn = sqlite3.connect(_SQLITE_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_sqlite_db():
+    with get_sqlite_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                section TEXT NOT NULL,
+                description TEXT NOT NULL,
+                source TEXT DEFAULT 'Self-identified',
+                status TEXT DEFAULT 'todo',
+                xp_value INTEGER DEFAULT 10,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER REFERENCES tasks(id),
+                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                duration_minutes INTEGER DEFAULT 25,
+                xp_earned INTEGER DEFAULT 10,
+                notes TEXT
+            )
+        """)
+        conn.commit()
+
+init_sqlite_db()
+
+def sqlite_add_task(section, description, source="Self-identified", xp_value=10):
+    with get_sqlite_conn() as conn:
+        conn.execute(
+            "INSERT INTO tasks (section, description, source, xp_value) VALUES (?, ?, ?, ?)",
+            (section, description, source, xp_value)
+        )
+        conn.commit()
+
+def sqlite_get_tasks(status=None):
+    with get_sqlite_conn() as conn:
+        if status:
+            rows = conn.execute("SELECT * FROM tasks WHERE status=? ORDER BY created_at DESC", (status,)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM tasks ORDER BY created_at DESC").fetchall()
+    return [dict(r) for r in rows]
+
+def sqlite_update_task_status(task_id, status):
+    with get_sqlite_conn() as conn:
+        conn.execute("UPDATE tasks SET status=? WHERE id=?", (status, task_id))
+        conn.commit()
+
+def sqlite_log_session(task_id, duration_minutes, xp_earned, notes=""):
+    with get_sqlite_conn() as conn:
+        conn.execute(
+            "INSERT INTO sessions (task_id, duration_minutes, xp_earned, notes) VALUES (?, ?, ?, ?)",
+            (task_id, duration_minutes, xp_earned, notes)
+        )
+        conn.commit()
+
+def sqlite_get_sessions(task_id=None):
+    with get_sqlite_conn() as conn:
+        if task_id:
+            rows = conn.execute(
+                "SELECT s.*, t.description, t.section FROM sessions s LEFT JOIN tasks t ON s.task_id=t.id WHERE s.task_id=? ORDER BY s.started_at DESC",
+                (task_id,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT s.*, t.description, t.section FROM sessions s LEFT JOIN tasks t ON s.task_id=t.id ORDER BY s.started_at DESC"
+            ).fetchall()
+    return [dict(r) for r in rows]
 
 # --- SERVE STATIC FOLDER ===
 st.markdown(
@@ -2446,6 +2526,33 @@ Return ONLY a numbered list, no explanation:
                             )
                         except Exception as e:
                             st.error(f"Failed: {e}")
+
+            # ── Synonym log ──
+            _syn_log = st.session_state.get("synonym_cache", {})
+            if _syn_log:
+                with st.expander(f"📖 Synonym Log ({len(_syn_log)} words)", expanded=False):
+                    # Export as plain text
+                    _syn_export = "\n\n".join(
+                        f"{w.upper()}\n{txt}"
+                        for w, txt in sorted(_syn_log.items())
+                    )
+                    st.download_button(
+                        "⬇️ Export All (.txt)",
+                        data=_syn_export,
+                        file_name="synonym_log.txt",
+                        mime="text/plain",
+                        use_container_width=True,
+                        key="syn_export_btn"
+                    )
+                    st.divider()
+                    for _sw, _stxt in sorted(_syn_log.items()):
+                        st.markdown(f"**{_sw}**")
+                        st.markdown(
+                            f'<div style="background:#1a1a2e;border-left:2px solid #f1c40f;'
+                            f'padding:6px 10px;border-radius:4px;color:#f0e6c8;font-size:0.8rem;">'
+                            f'{_stxt}</div>',
+                            unsafe_allow_html=True
+                        )
 
     else:  # Templates
         TEMPLATES = {
@@ -5461,6 +5568,81 @@ with t8:
                                 text=f"{_icon} {_atype}: {len(_type_done)}/{len(_type_items)}")
     else:
         st.info("No feedback items found.")
+
+# ─────────────────────────────────────────────
+# TASK QUEUE (SQLite)
+# ─────────────────────────────────────────────
+st.divider()
+st.header("📋 Task Queue")
+
+_tq_tabs = st.tabs(["➕ Add Task", "📋 Active Tasks", "✅ Completed", "📊 Sessions"])
+
+with _tq_tabs[0]:
+    with st.form("add_task_form", clear_on_submit=True):
+        _tq_section = st.text_input("Section", placeholder="e.g. HBMC Essay, Climate & Disaster")
+        _tq_desc = st.text_area("Description", placeholder="What needs to be done?", height=80)
+        _tq_source = st.text_input("Source", value="Self-identified", placeholder="e.g. Emma feedback, Committee")
+        _tq_xp = st.number_input("XP Value", min_value=5, max_value=200, value=10, step=5)
+        if st.form_submit_button("Add Task", type="primary"):
+            if _tq_section.strip() and _tq_desc.strip():
+                sqlite_add_task(_tq_section.strip(), _tq_desc.strip(), _tq_source.strip(), int(_tq_xp))
+                st.success("Task added.")
+                st.rerun()
+            else:
+                st.warning("Section and description are required.")
+
+with _tq_tabs[1]:
+    _active_tasks = sqlite_get_tasks(status="todo")
+    if not _active_tasks:
+        st.info("No active tasks. Add one above.")
+    else:
+        for _t in _active_tasks:
+            with st.expander(f"[{_t['section']}] {_t['description']} — {_t['xp_value']} XP"):
+                st.caption(f"Source: {_t['source']} · Added: {_t['created_at']}")
+                _tc1, _tc2, _tc3 = st.columns(3)
+                if _tc1.button("✅ Complete", key=f"tq_done_{_t['id']}"):
+                    sqlite_update_task_status(_t['id'], "done")
+                    st.session_state.xp += _t['xp_value']
+                    sqlite_log_session(_t['id'], 0, _t['xp_value'], "Marked complete")
+                    save_all_progress()
+                    st.toast(f"🦇 +{_t['xp_value']} XP — task complete!", icon="🦇")
+                    st.rerun()
+                if _tc2.button("🚫 Drop", key=f"tq_drop_{_t['id']}"):
+                    sqlite_update_task_status(_t['id'], "dropped")
+                    st.rerun()
+                with _tc3.popover("⏱ Log Session"):
+                    with st.form(f"log_session_{_t['id']}"):
+                        _sess_mins = st.number_input("Minutes", min_value=5, max_value=240, value=25, step=5, key=f"sm_{_t['id']}")
+                        _sess_xp = st.number_input("XP Earned", min_value=1, max_value=500, value=_t['xp_value'], step=5, key=f"sx_{_t['id']}")
+                        _sess_notes = st.text_input("Notes", placeholder="What did you accomplish?", key=f"sn_{_t['id']}")
+                        if st.form_submit_button("Log"):
+                            sqlite_log_session(_t['id'], int(_sess_mins), int(_sess_xp), _sess_notes)
+                            st.session_state.xp += int(_sess_xp)
+                            save_all_progress()
+                            st.toast(f"🦇 +{_sess_xp} XP — {_sess_mins}m session logged!", icon="🦇")
+                            st.rerun()
+
+with _tq_tabs[2]:
+    _done_tasks = sqlite_get_tasks(status="done")
+    _dropped_tasks = sqlite_get_tasks(status="dropped")
+    if not _done_tasks and not _dropped_tasks:
+        st.info("Nothing completed yet.")
+    for _t in _done_tasks:
+        st.markdown(f"✅ **[{_t['section']}]** {_t['description']} — *{_t['xp_value']} XP*")
+    for _t in _dropped_tasks:
+        st.markdown(f"🚫 ~~[{_t['section']}] {_t['description']}~~")
+
+with _tq_tabs[3]:
+    _all_sessions = sqlite_get_sessions()
+    if not _all_sessions:
+        st.info("No sessions logged yet.")
+    else:
+        _sess_df = pd.DataFrame(_all_sessions)[["started_at", "section", "description", "duration_minutes", "xp_earned", "notes"]]
+        _sess_df.columns = ["Started", "Section", "Task", "Minutes", "XP", "Notes"]
+        st.dataframe(_sess_df, use_container_width=True, hide_index=True)
+        _total_xp = sum(s["xp_earned"] for s in _all_sessions)
+        _total_mins = sum(s["duration_minutes"] for s in _all_sessions)
+        st.caption(f"Total: {_total_mins}m focused · {_total_xp} XP earned across {len(_all_sessions)} sessions")
 
 # ── COMPS COACH FLOATING BUTTON ──────────────────────────────────────────────
 import anthropic as _anthropic
