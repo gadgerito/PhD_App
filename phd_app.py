@@ -864,12 +864,42 @@ def init_sqlite_db():
             CREATE TABLE IF NOT EXISTS sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 task_id INTEGER REFERENCES tasks(id),
+                session_type TEXT DEFAULT 'pomodoro',
                 started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 duration_minutes INTEGER DEFAULT 25,
                 xp_earned INTEGER DEFAULT 10,
                 notes TEXT
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER REFERENCES tasks(id),
+                section TEXT NOT NULL,
+                reviewer TEXT NOT NULL,
+                feedback_text TEXT NOT NULL,
+                feedback_type TEXT,
+                priority TEXT DEFAULT 'medium',
+                status TEXT DEFAULT 'open',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS blitz_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER REFERENCES tasks(id),
+                section TEXT,
+                score INTEGER,
+                questions_attempted INTEGER,
+                questions_correct INTEGER,
+                played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Add session_type column to existing sessions table if it was created without it
+        try:
+            conn.execute("ALTER TABLE sessions ADD COLUMN session_type TEXT DEFAULT 'pomodoro'")
+        except Exception:
+            pass
         conn.commit()
 
 init_sqlite_db()
@@ -895,11 +925,11 @@ def sqlite_update_task_status(task_id, status):
         conn.execute("UPDATE tasks SET status=? WHERE id=?", (status, task_id))
         conn.commit()
 
-def sqlite_log_session(task_id, duration_minutes, xp_earned, notes=""):
+def sqlite_log_session(task_id, duration_minutes, xp_earned, session_type="pomodoro", notes=""):
     with get_sqlite_conn() as conn:
         conn.execute(
-            "INSERT INTO sessions (task_id, duration_minutes, xp_earned, notes) VALUES (?, ?, ?, ?)",
-            (task_id, duration_minutes, xp_earned, notes)
+            "INSERT INTO sessions (task_id, duration_minutes, xp_earned, session_type, notes) VALUES (?, ?, ?, ?, ?)",
+            (task_id, duration_minutes, xp_earned, session_type, notes)
         )
         conn.commit()
 
@@ -915,6 +945,36 @@ def sqlite_get_sessions(task_id=None):
                 "SELECT s.*, t.description, t.section FROM sessions s LEFT JOIN tasks t ON s.task_id=t.id ORDER BY s.started_at DESC"
             ).fetchall()
     return [dict(r) for r in rows]
+
+def sqlite_log_feedback(section, reviewer, feedback_text, feedback_type=None, priority="medium", task_id=None, status="open"):
+    with get_sqlite_conn() as conn:
+        conn.execute(
+            "INSERT INTO feedback (task_id, section, reviewer, feedback_text, feedback_type, priority, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (task_id, section, reviewer, feedback_text, feedback_type, priority, status)
+        )
+        conn.commit()
+
+def sqlite_resolve_feedback(section, reviewer, feedback_text):
+    """Mark a feedback row resolved, or insert it as resolved if not yet tracked."""
+    with get_sqlite_conn() as conn:
+        updated = conn.execute(
+            "UPDATE feedback SET status='resolved' WHERE section=? AND reviewer=? AND feedback_text=?",
+            (section, reviewer, feedback_text)
+        ).rowcount
+        if updated == 0:
+            conn.execute(
+                "INSERT INTO feedback (section, reviewer, feedback_text, status) VALUES (?, ?, ?, 'resolved')",
+                (section, reviewer, feedback_text)
+            )
+        conn.commit()
+
+def sqlite_log_blitz(score, questions_attempted, questions_correct, section=None, task_id=None):
+    with get_sqlite_conn() as conn:
+        conn.execute(
+            "INSERT INTO blitz_results (task_id, section, score, questions_attempted, questions_correct) VALUES (?, ?, ?, ?, ?)",
+            (task_id, section, score, questions_attempted, questions_correct)
+        )
+        conn.commit()
 
 # --- SERVE STATIC FOLDER ===
 st.markdown(
@@ -2334,6 +2394,7 @@ with st.sidebar:
                     st.session_state.xp += 25
                     st.session_state.celebration_xp = 25
                     st.session_state.pomodoro_done = True
+                    sqlite_log_session(None, 25, 25, session_type="pomodoro", notes=_mission)
                     save_all_progress()
                     st.balloons()
                     st.rerun()
@@ -5186,6 +5247,7 @@ with t8:
                     st.session_state.xp += _total_bonus
                     st.session_state.celebration_xp = _total_bonus
                     st.session_state.race_active = False
+                    sqlite_log_blitz(score=_total_bonus, questions_attempted=_race_target_count, questions_correct=_race_completed)
                     save_all_progress()
                     st.balloons()
                     st.rerun(scope="app")
@@ -5217,6 +5279,7 @@ with t8:
                     st.session_state.xp += _partial
                     st.session_state.celebration_xp = _partial
                     st.session_state.race_active = False
+                    sqlite_log_blitz(score=_partial, questions_attempted=_race_target_count, questions_correct=_race_completed)
                     save_all_progress()
                     st.rerun(scope="app")
 
@@ -5230,6 +5293,8 @@ with t8:
                     st.session_state.celebration_xp = _abort_xp
                     save_all_progress()
                     st.toast(f"🦇 +{_abort_xp} XP for {_abort_completed} items completed!", icon="🦇")
+                _race_target_at_abort = st.session_state.get("race_target", 0)
+                sqlite_log_blitz(score=_abort_xp, questions_attempted=_race_target_at_abort, questions_correct=_abort_completed)
                 st.session_state.race_active = False
                 st.rerun(scope="app")
 
@@ -5335,6 +5400,11 @@ with t8:
                                         _cached["status"] = "done"
                                         _cached["completed_at"] = datetime.now()
                                         break
+                            sqlite_resolve_feedback(
+                                section=_bitem.get("section", ""),
+                                reviewer=_bitem.get("reviewer", ""),
+                                feedback_text=_bitem.get("comment", _bitem.get("id", ""))
+                            )
                             _bulk_xp += _bxp
                         st.session_state.xp += _bulk_xp
                         st.session_state.celebration_xp = _bulk_xp
@@ -5456,6 +5526,11 @@ with t8:
                                     _cached["status"] = "done"
                                     _cached["completed_at"] = datetime.now()
                                     break
+                        sqlite_resolve_feedback(
+                            section=_item.get("section", ""),
+                            reviewer=_item.get("reviewer", ""),
+                            feedback_text=_item.get("comment", _item.get("id", ""))
+                        )
                         st.session_state.xp += _xp_reward
                         st.session_state.celebration_xp = _xp_reward
                         st.session_state.last_worked_section = _item.get("section", "")
